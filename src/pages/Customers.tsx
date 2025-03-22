@@ -19,6 +19,31 @@ import {
 } from "@/components/ui/table";
 import { FileEdit, Search, UserPlus } from "lucide-react";
 import { useState } from "react";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+// Định nghĩa schema Zod cho form
+const customerFormSchema = z.object({
+  name: z.string().min(1, { message: "Tên công ty không được để trống" }),
+  contact: z.string().min(1, { message: "Tên người liên hệ không được để trống" }),
+  email: z.string().email({ message: "Email không hợp lệ" }),
+  phone: z.string().min(10, { message: "Số điện thoại không hợp lệ" }),
+  address: z.string().min(1, { message: "Địa chỉ không được để trống" }),
+});
+
+type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 // Dữ liệu mẫu cho khách hàng
 const sampleCustomers = [
@@ -72,6 +97,19 @@ const sampleCustomers = [
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [customers, setCustomers] = useState(sampleCustomers);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
+      name: "",
+      contact: "",
+      email: "",
+      phone: "",
+      address: "",
+    },
+  });
 
   // Lọc khách hàng theo từ khóa tìm kiếm
   const filteredCustomers = customers.filter(customer => 
@@ -80,14 +118,124 @@ const Customers = () => {
     customer.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const onSubmit = (data: CustomerFormValues) => {
+    // Thêm khách hàng mới vào danh sách
+    const newCustomer = {
+      id: customers.length + 1,
+      name: data.name,
+      contact: data.contact,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      totalRentals: 0
+    };
+    
+    setCustomers([...customers, newCustomer]);
+    
+    // Hiển thị thông báo
+    toast({
+      title: "Tạo khách hàng thành công",
+      description: `Đã thêm khách hàng ${data.name}`,
+    });
+    
+    // Reset form và đóng dialog
+    form.reset();
+    setIsDialogOpen(false);
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Quản lý khách hàng</h2>
-        <Button>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Thêm khách hàng
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Thêm khách hàng
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Thêm khách hàng mới</DialogTitle>
+              <DialogDescription>
+                Nhập thông tin khách hàng mới vào form bên dưới.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tên công ty</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Công ty Phim Việt" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="contact"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Người liên hệ</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nguyễn Văn A" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="contact@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Số điện thoại</FormLabel>
+                      <FormControl>
+                        <Input placeholder="0912345678" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Địa chỉ</FormLabel>
+                      <FormControl>
+                        <Input placeholder="123 Đường Lê Lợi, Quận 1, TP.HCM" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)} type="button">Hủy</Button>
+                  <Button type="submit">Lưu thông tin</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
       
       <Card>
