@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -24,7 +23,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { CalendarIcon, FileEdit, PlusCircle, Search } from "lucide-react";
+import { CalendarIcon, FileEdit, MoreHorizontal, PlusCircle, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -47,9 +46,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-// Định nghĩa schema Zod cho form
 const rentalFormSchema = z.object({
   customerId: z.string().min(1, { message: "Vui lòng chọn khách hàng" }),
   equipmentIds: z.array(z.string()).min(1, { message: "Vui lòng chọn ít nhất một thiết bị" }),
@@ -62,7 +67,6 @@ const rentalFormSchema = z.object({
 
 type RentalFormValues = z.infer<typeof rentalFormSchema>;
 
-// Dữ liệu mẫu cho khách hàng
 const sampleCustomers = [
   { id: "1", name: "Công ty Phim Việt" },
   { id: "2", name: "Đoàn phim ABC" },
@@ -71,7 +75,6 @@ const sampleCustomers = [
   { id: "5", name: "Phim trường Future" },
 ];
 
-// Dữ liệu mẫu cho thiết bị
 const sampleEquipments = [
   { id: "1", name: "Máy quay Sony FS7" },
   { id: "2", name: "Đèn Aputure 300d" },
@@ -80,7 +83,6 @@ const sampleEquipments = [
   { id: "5", name: "Microphone Rode NTG4+" },
 ];
 
-// Dữ liệu mẫu cho đơn hàng thuê
 const sampleRentals = [
   {
     id: 1,
@@ -118,6 +120,8 @@ const Rentals = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [rentals, setRentals] = useState(sampleRentals);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedRental, setSelectedRental] = useState<typeof sampleRentals[0] | null>(null);
   const { toast } = useToast();
 
   const form = useForm<RentalFormValues>({
@@ -133,7 +137,80 @@ const Rentals = () => {
     },
   });
 
-  // Lọc đơn hàng theo từ khóa tìm kiếm
+  const editForm = useForm<RentalFormValues>({
+    resolver: zodResolver(rentalFormSchema),
+    defaultValues: {
+      customerId: "",
+      equipmentIds: [],
+      startDate: undefined,
+      endDate: undefined,
+      totalAmount: 0,
+      deposit: 0,
+      status: "Đặt trước",
+    },
+  });
+
+  const handleEditRental = (rental: typeof sampleRentals[0]) => {
+    setSelectedRental(rental);
+    
+    const customerId = sampleCustomers.find(c => c.name === rental.customerName)?.id || "";
+    
+    const equipmentNames = rental.equipments.split(", ");
+    const equipmentIds = sampleEquipments
+      .filter(e => equipmentNames.includes(e.name))
+      .map(e => e.id);
+    
+    const startDateParts = rental.startDate.split("/");
+    const endDateParts = rental.endDate.split("/");
+    
+    const startDate = new Date(
+      parseInt(startDateParts[2]),
+      parseInt(startDateParts[1]) - 1,
+      parseInt(startDateParts[0])
+    );
+    
+    const endDate = new Date(
+      parseInt(endDateParts[2]),
+      parseInt(endDateParts[1]) - 1,
+      parseInt(endDateParts[0])
+    );
+
+    editForm.reset({
+      customerId,
+      equipmentIds,
+      startDate,
+      endDate,
+      totalAmount: rental.totalAmount,
+      deposit: rental.deposit,
+      status: rental.status
+    });
+    
+    setIsEditDialogOpen(true);
+  };
+
+  const handleStatusChange = (rentalId: number, newStatus: string) => {
+    setRentals(prevRentals => 
+      prevRentals.map(rental => 
+        rental.id === rentalId ? { ...rental, status: newStatus } : rental
+      )
+    );
+    
+    toast({
+      title: "Cập nhật trạng thái",
+      description: `Đã chuyển đơn hàng #${rentalId} sang trạng thái "${newStatus}"`,
+    });
+  };
+
+  const handleDeleteRental = (rentalId: number) => {
+    setRentals(prevRentals => prevRentals.filter(rental => rental.id !== rentalId));
+    
+    toast({
+      title: "Xóa đơn hàng",
+      description: `Đã xóa đơn hàng #${rentalId}`,
+      variant: "destructive"
+    });
+  };
+
   const filteredRentals = rentals.filter(rental => 
     rental.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     rental.equipments.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -141,14 +218,11 @@ const Rentals = () => {
   );
 
   const onSubmit = (data: RentalFormValues) => {
-    // Tìm thông tin khách hàng từ id
     const customer = sampleCustomers.find(c => c.id === data.customerId);
     
-    // Tìm thông tin các thiết bị từ id
     const selectedEquipments = sampleEquipments.filter(e => data.equipmentIds.includes(e.id));
     const equipmentNames = selectedEquipments.map(e => e.name).join(", ");
     
-    // Thêm đơn hàng mới vào danh sách
     const newRental = {
       id: rentals.length + 1,
       customerName: customer?.name || "",
@@ -162,15 +236,48 @@ const Rentals = () => {
     
     setRentals([...rentals, newRental]);
     
-    // Hiển thị thông báo
     toast({
       title: "Tạo đơn hàng thành công",
       description: `Đã thêm đơn hàng cho khách hàng ${customer?.name}`,
     });
     
-    // Reset form và đóng dialog
     form.reset();
     setIsDialogOpen(false);
+  };
+
+  const onEditSubmit = (data: RentalFormValues) => {
+    if (!selectedRental) return;
+    
+    const customer = sampleCustomers.find(c => c.id === data.customerId);
+    
+    const selectedEquipments = sampleEquipments.filter(e => data.equipmentIds.includes(e.id));
+    const equipmentNames = selectedEquipments.map(e => e.name).join(", ");
+    
+    setRentals(prevRentals => 
+      prevRentals.map(rental => 
+        rental.id === selectedRental.id 
+          ? {
+              ...rental,
+              customerName: customer?.name || "",
+              equipments: equipmentNames,
+              startDate: format(data.startDate, "dd/MM/yyyy"),
+              endDate: format(data.endDate, "dd/MM/yyyy"),
+              totalAmount: data.totalAmount,
+              deposit: data.deposit,
+              status: data.status
+            } 
+          : rental
+      )
+    );
+    
+    toast({
+      title: "Cập nhật đơn hàng",
+      description: `Đã cập nhật đơn hàng #${selectedRental.id}`,
+    });
+    
+    editForm.reset();
+    setIsEditDialogOpen(false);
+    setSelectedRental(null);
   };
 
   return (
@@ -470,9 +577,40 @@ const Rentals = () => {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon">
-                      <FileEdit className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditRental(rental)}>
+                          <FileEdit className="mr-2 h-4 w-4" />
+                          Chỉnh sửa
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleStatusChange(rental.id, "Đặt trước")}>
+                          Đặt trước
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(rental.id, "Đang thuê")}>
+                          Đang thuê
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(rental.id, "Hoàn thành")}>
+                          Hoàn thành
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(rental.id, "Đã hủy")}>
+                          Đã hủy
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => handleDeleteRental(rental.id)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Xóa
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -485,6 +623,238 @@ const Rentals = () => {
           </p>
         </CardFooter>
       </Card>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa đơn hàng thuê</DialogTitle>
+            <DialogDescription>
+              Chỉnh sửa thông tin đơn hàng thuê.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="customerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Khách hàng</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn khách hàng" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sampleCustomers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
+                name="equipmentIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Thiết bị thuê</FormLabel>
+                    <FormControl>
+                      <Select
+                        onValueChange={(value) => field.onChange([...field.value, value])}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn thiết bị" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sampleEquipments.map((equipment) => (
+                            <SelectItem key={equipment.id} value={equipment.id}>
+                              {equipment.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {field.value.map(id => {
+                        const equipment = sampleEquipments.find(e => e.id === id);
+                        return equipment ? (
+                          <div key={id} className="bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-sm flex items-center">
+                            {equipment.name}
+                            <button
+                              type="button"
+                              className="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground"
+                              onClick={() => field.onChange(field.value.filter(v => v !== id))}
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Ngày bắt đầu</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "dd/MM/yyyy")
+                              ) : (
+                                <span>Chọn ngày</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Ngày kết thúc</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "dd/MM/yyyy")
+                              ) : (
+                                <span>Chọn ngày</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="totalAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tổng tiền (VNĐ)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="5,000,000" 
+                          {...field}
+                          onChange={e => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="deposit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tiền đặt cọc (VNĐ)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="2,000,000" 
+                          {...field}
+                          onChange={e => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={editForm.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Trạng thái</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn trạng thái" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Đặt trước">Đặt trước</SelectItem>
+                          <SelectItem value="Đang thuê">Đang thuê</SelectItem>
+                          <SelectItem value="Hoàn thành">Hoàn thành</SelectItem>
+                          <SelectItem value="Đã hủy">Đã hủy</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} type="button">Hủy</Button>
+                <Button type="submit">Lưu thay đổi</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
