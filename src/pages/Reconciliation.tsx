@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -40,7 +41,7 @@ import {
 } from "@/components/ui/popover";
 import { Clock, FileCheck, Search, ChevronDown, Check, X, FileSpreadsheet } from "lucide-react";
 import { useState } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -612,6 +613,39 @@ const Reconciliation = () => {
             
             {selectedPartner && selectedPeriod && (
               <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div className="space-x-2">
+                    <Button 
+                      variant={selectedPeriod.status === "Chờ xác nhận" ? "outline" : "default"} 
+                      onClick={() => handleStatus("Chờ xác nhận")} 
+                      disabled={selectedPeriod.status === "Chờ xác nhận"}
+                      size="sm"
+                    >
+                      <Clock className="mr-1 h-4 w-4" />
+                      Chờ xác nhận
+                    </Button>
+                    <Button 
+                      variant={selectedPeriod.status === "Đã đối soát" ? "outline" : "default"} 
+                      onClick={() => handleStatus("Đã đối soát")} 
+                      disabled={selectedPeriod.status === "Đã đối soát"}
+                      className="bg-green-600 hover:bg-green-700"
+                      size="sm"
+                    >
+                      <Check className="mr-1 h-4 w-4" />
+                      Đã đối soát
+                    </Button>
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setIsExportDialogOpen(true)}
+                  >
+                    <FileSpreadsheet className="mr-1 h-4 w-4" />
+                    Xuất Excel
+                  </Button>
+                </div>
+                
                 <Tabs defaultValue="they-rent" className="w-full">
                   <TabsList className="w-full">
                     <TabsTrigger value="they-rent" className="flex-1">Đối tác thuê của bạn</TabsTrigger>
@@ -714,4 +748,55 @@ const Reconciliation = () => {
                                 {formatCurrency(selectedPeriod.weRentFromThem.reduce((sum: number, item: any) => sum + item.amount, 0))}
                               </TableCell>
                               <TableCell>
-                                {formatCurrency(selectedPeriod.weRentFromThem.reduce((sum
+                                {formatCurrency(selectedPeriod.weRentFromThem.reduce((sum: number, item: any) => sum + item.partnerAmount, 0))}
+                              </TableCell>
+                              <TableCell className={selectedPeriod.weRentFromThem.reduce((sum: number, item: any) => sum + item.diff, 0) > 0 ? "text-red-600 font-medium" : ""}>
+                                {formatCurrency(selectedPeriod.weRentFromThem.reduce((sum: number, item: any) => sum + item.diff, 0))}
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+        
+        {/* Dialog xuất file Excel */}
+        <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Xuất file Excel</DialogTitle>
+              <DialogDescription>
+                Nhập thông tin cần thiết để xuất file Excel
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <FormLabel htmlFor="oldDebt">Công nợ cũ (nếu có)</FormLabel>
+                  <Input
+                    id="oldDebt"
+                    type="number"
+                    value={oldDebt}
+                    onChange={(e) => setOldDebt(Number(e.target.value))}
+                    placeholder="Nhập công nợ cũ..."
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Hủy</Button>
+              <Button onClick={handleExportExcel}>Xuất file</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  );
+};
+
+export default Reconciliation;
