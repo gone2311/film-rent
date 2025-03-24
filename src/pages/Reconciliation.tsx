@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -39,7 +38,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Clock, FileCheck, Search, ChevronDown, Check, X } from "lucide-react";
+import { Clock, FileCheck, Search, ChevronDown, Check, X, FileSpreadsheet } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -56,6 +55,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Navbar } from "@/components/ui/navbar";
+import { useCompany } from "@/context/CompanyContext";
+import { exportReconciliationToExcel } from "@/utils/exportExcel";
 
 // Định nghĩa schema Zod cho form
 const reconciliationFormSchema = z.object({
@@ -226,7 +227,10 @@ const Reconciliation = () => {
   const [selectedPartner, setSelectedPartner] = useState<any>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<any>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [oldDebt, setOldDebt] = useState<number>(0);
   const { toast } = useToast();
+  const { companyName } = useCompany();
 
   const form = useForm<ReconciliationFormValues>({
     resolver: zodResolver(reconciliationFormSchema),
@@ -349,6 +353,33 @@ const Reconciliation = () => {
       title: `Đã cập nhật trạng thái đối soát`,
       description: `Đối soát với đối tác ${selectedPartner.name} từ ${selectedPeriod.fromDate} đến ${selectedPeriod.toDate} đã được cập nhật thành ${status}`,
     });
+  };
+
+  const handleExportExcel = () => {
+    if (!selectedPartner || !selectedPeriod) return;
+    
+    try {
+      const fileName = exportReconciliationToExcel(
+        selectedPartner,
+        selectedPeriod,
+        companyName,
+        oldDebt
+      );
+      
+      toast({
+        title: "Xuất file thành công",
+        description: `Đã xuất file ${fileName}`,
+      });
+      
+      setIsExportDialogOpen(false);
+    } catch (error) {
+      console.error("Lỗi khi xuất file:", error);
+      toast({
+        title: "Xuất file thất bại",
+        description: "Có lỗi xảy ra khi xuất file Excel",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -683,55 +714,4 @@ const Reconciliation = () => {
                                 {formatCurrency(selectedPeriod.weRentFromThem.reduce((sum: number, item: any) => sum + item.amount, 0))}
                               </TableCell>
                               <TableCell>
-                                {formatCurrency(selectedPeriod.weRentFromThem.reduce((sum: number, item: any) => sum + item.partnerAmount, 0))}
-                              </TableCell>
-                              <TableCell className={selectedPeriod.weRentFromThem.reduce((sum: number, item: any) => sum + item.diff, 0) > 0 ? "text-red-600 font-medium" : ""}>
-                                {formatCurrency(selectedPeriod.weRentFromThem.reduce((sum: number, item: any) => sum + item.diff, 0))}
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-                
-                <div className="flex justify-between items-center">
-                  <div className="space-x-2">
-                    {selectedPeriod.status !== "Đã đối soát" && (
-                      <Button 
-                        variant="outline" 
-                        onClick={() => handleStatus("Đã đối soát")}
-                        className="bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800"
-                      >
-                        <Check className="mr-2 h-4 w-4" />
-                        Xác nhận đối soát
-                      </Button>
-                    )}
-                    
-                    {selectedPeriod.status === "Chờ xử lý" && (
-                      <Button 
-                        variant="outline"
-                        onClick={() => handleStatus("Chờ xác nhận")}
-                        className="bg-yellow-50 text-yellow-700 hover:bg-yellow-100 hover:text-yellow-800"
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        Gửi yêu cầu xác nhận
-                      </Button>
-                    )}
-                  </div>
-                  
-                  <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
-                    Đóng
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    </div>
-  );
-};
-
-export default Reconciliation;
+                                {formatCurrency(selectedPeriod.weRentFromThem.reduce((sum

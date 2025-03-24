@@ -9,13 +9,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText, Menu, User } from "lucide-react";
+import { FileText, Menu, Settings as SettingsIcon, User } from "lucide-react";
+import { useCompany } from "@/context/CompanyContext";
 
 export function Navbar() {
+  const { companyName, companyLogo } = useCompany();
+  
   return (
     <nav className="border-b">
       <div className="flex h-16 items-center px-4 container mx-auto">
-        <Link to="/" className="font-bold text-2xl">FilmRent</Link>
+        <Link to="/" className="flex items-center gap-2">
+          {companyLogo ? (
+            <img src={companyLogo} alt={companyName} className="h-8 w-auto" />
+          ) : null}
+          <span className="font-bold text-2xl">{companyName}</span>
+        </Link>
 
         <div className="ml-auto flex items-center space-x-4">
           <div className="hidden md:flex items-center space-x-4">
@@ -99,8 +107,10 @@ export function Navbar() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Tài khoản</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <Link to="/settings" className="w-full">Cài đặt công ty</Link>
+              </DropdownMenuItem>
               <DropdownMenuItem>Thông tin cá nhân</DropdownMenuItem>
-              <DropdownMenuItem>Cài đặt</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem>Đăng xuất</DropdownMenuItem>
             </DropdownMenuContent>
