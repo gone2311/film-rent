@@ -1,4 +1,3 @@
-
 export interface RentalItem {
   id: number;
   description: string;
@@ -35,4 +34,58 @@ export interface Partner {
   email: string;
   phone: string;
   address: string;
+}
+
+export interface EquipmentCategory {
+  id: string;
+  name: string;
+}
+
+export interface Equipment {
+  id: string;
+  name: string;
+  category: string;
+  dailyRate: number;
+  description?: string;
+  quantity: number;
+  isAvailable: boolean;
+}
+
+export interface RentalItemDetail {
+  id: string;
+  equipmentId: string;
+  equipmentName: string;
+  quantity: number;
+  days: number;
+  dailyRate: number;
+  totalAmount: number;
+}
+
+export interface RentalOrder {
+  id: number;
+  customerId: string;
+  customerName: string;
+  contact: string;
+  startDate: string;
+  endDate: string;
+  items: RentalItemDetail[];
+  totalAmount: number;
+  deposit: number;
+  balance: number;
+  status: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface Debt {
+  id: number;
+  customerId: string;
+  customerName: string;
+  contact: string;
+  amount: number;
+  dueDate: string;
+  issueDate: string;
+  description: string;
+  status: string;
+  relatedOrderId?: number;
 }
