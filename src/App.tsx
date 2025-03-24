@@ -16,34 +16,38 @@ import Debts from "./pages/Debts";
 import Quotes from "./pages/Quotes";
 import Reconciliation from "./pages/Reconciliation";
 import Settings from "./pages/Settings";
+import { useState } from "react";
 
-const queryClient = new QueryClient();
+const App = () => {
+  // Move QueryClient initialization inside the component
+  const [queryClient] = useState(() => new QueryClient());
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <CompanyProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/equipment" element={<Equipment />} />
-            <Route path="/rentals" element={<Rentals />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/backdrop" element={<Backdrop />} />
-            <Route path="/debts" element={<Debts />} />
-            <Route path="/quotes" element={<Quotes />} />
-            <Route path="/reconciliation" element={<Reconciliation />} />
-            <Route path="/settings" element={<Settings />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </CompanyProvider>
-  </QueryClientProvider>
-);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <CompanyProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/equipment" element={<Equipment />} />
+              <Route path="/rentals" element={<Rentals />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/backdrop" element={<Backdrop />} />
+              <Route path="/debts" element={<Debts />} />
+              <Route path="/quotes" element={<Quotes />} />
+              <Route path="/reconciliation" element={<Reconciliation />} />
+              <Route path="/settings" element={<Settings />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </CompanyProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
