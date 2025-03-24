@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, User } from "lucide-react";
+import { FileText, Menu, User } from "lucide-react";
 
 export function Navbar() {
   return (
@@ -31,6 +31,26 @@ export function Navbar() {
             <Link to="/customers">
               <Button variant="ghost">Khách hàng</Button>
             </Link>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Tài chính
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem>
+                  <Link to="/debts" className="w-full">Công nợ</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link to="/quotes" className="w-full">Báo giá</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link to="/reconciliation" className="w-full">Đối soát</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <DropdownMenu>
@@ -44,16 +64,27 @@ export function Navbar() {
               <DropdownMenuLabel>Menu</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
-                <Link to="/dashboard">Trang chủ</Link>
+                <Link to="/dashboard" className="w-full">Trang chủ</Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <Link to="/equipment">Thiết bị</Link>
+                <Link to="/equipment" className="w-full">Thiết bị</Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <Link to="/rentals">Đơn hàng</Link>
+                <Link to="/rentals" className="w-full">Đơn hàng</Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <Link to="/customers">Khách hàng</Link>
+                <Link to="/customers" className="w-full">Khách hàng</Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Tài chính</DropdownMenuLabel>
+              <DropdownMenuItem>
+                <Link to="/debts" className="w-full">Công nợ</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Link to="/quotes" className="w-full">Báo giá</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Link to="/reconciliation" className="w-full">Đối soát</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
