@@ -31,7 +31,7 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { CalendarIcon, FileEdit, MoreHorizontal, PlusCircle, MinusCircle, Search, Trash2, Calculator, FileText } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, Fragment } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
@@ -1409,7 +1409,7 @@ const Rentals = () => {
                       if (categoryItems.length === 0) return null;
                       
                       return (
-                        <React.Fragment key={category.id}>
+                        <Fragment key={category.id}>
                           <TableRow className="bg-amber-50">
                             <TableCell colSpan={6} className="font-bold text-center py-2">
                               {category.name}
@@ -1426,7 +1426,7 @@ const Rentals = () => {
                               <TableCell className="text-right">{formatCurrency(item.totalAmount)}</TableCell>
                             </TableRow>
                           ))}
-                        </React.Fragment>
+                        </Fragment>
                       );
                     })}
                     
