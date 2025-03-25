@@ -18,12 +18,14 @@ import Reconciliation from "./pages/Reconciliation";
 import Settings from "./pages/Settings";
 import { useState } from "react";
 import { Navbar } from "./components/ui/navbar";
+import { ActionMenubar } from "./components/ui/action-menubar";
 
 // Tạo component MainLayout để bọc tất cả các trang chính với thanh điều hướng
 const MainLayout = ({ children }) => {
   return (
     <>
       <Navbar />
+      <ActionMenubar />
       {children}
     </>
   );

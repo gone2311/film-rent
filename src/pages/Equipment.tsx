@@ -28,8 +28,15 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, FileEdit, Search } from "lucide-react";
+import { FileEdit, PlusCircle, Search } from "lucide-react";
 import { useState } from "react";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Dữ liệu mẫu cho thiết bị
 const sampleEquipment = [
@@ -78,6 +85,8 @@ const sampleEquipment = [
 const Equipment = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [equipment, setEquipment] = useState(sampleEquipment);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   // Lọc thiết bị theo từ khóa tìm kiếm
   const filteredEquipment = equipment.filter(item => 
@@ -94,14 +103,22 @@ const Equipment = () => {
     }]);
   };
 
+  const handleEditEquipment = (id: number) => {
+    // Implement edit logic here
+    toast({
+      title: "Chức năng đang phát triển",
+      description: "Chức năng chỉnh sửa thiết bị sẽ sớm được cập nhật",
+    });
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Quản lý thiết bị</h2>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" />
+              <PlusCircle className="mr-2 h-4 w-4" />
               Thêm thiết bị
             </Button>
           </DialogTrigger>
@@ -122,7 +139,11 @@ const Equipment = () => {
                 condition: formData.get('condition') as string
               });
               e.currentTarget.reset();
-              document.querySelector('[data-state="open"]')?.setAttribute('data-state', 'closed');
+              setIsDialogOpen(false);
+              toast({
+                title: "Thiết bị đã được thêm",
+                description: "Thiết bị mới đã được thêm vào danh sách",
+              });
             }}>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -209,9 +230,43 @@ const Equipment = () => {
                   </TableCell>
                   <TableCell>{item.condition}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon">
-                      <FileEdit className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <FileEdit className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditEquipment(item.id)}>
+                          Chỉnh sửa
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          // Toggle status
+                          const newStatus = item.status === "Sẵn sàng" ? "Đang thuê" : "Sẵn sàng";
+                          setEquipment(
+                            equipment.map(eq => 
+                              eq.id === item.id ? {...eq, status: newStatus} : eq
+                            )
+                          );
+                          toast({
+                            title: "Đã cập nhật trạng thái",
+                            description: `Thiết bị ${item.name} đã được chuyển sang ${newStatus}`,
+                          });
+                        }}>
+                          {item.status === "Sẵn sàng" ? "Đánh dấu đang thuê" : "Đánh dấu sẵn sàng"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setEquipment(equipment.filter(eq => eq.id !== item.id));
+                          toast({
+                            title: "Đã xóa thiết bị",
+                            description: `Thiết bị ${item.name} đã được xóa khỏi danh sách`,
+                            variant: "destructive"
+                          });
+                        }} className="text-destructive">
+                          Xóa thiết bị
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
