@@ -328,28 +328,13 @@ const Customers = () => {
                   <TableCell className="max-w-[200px] truncate">{customer.address}</TableCell>
                   <TableCell>{customer.totalRentals}</TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <FileEdit className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(customer)}>
-                          Chỉnh sửa
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          setCustomers(customers.filter(c => c.id !== customer.id));
-                          toast({
-                            title: "Đã xóa khách hàng",
-                            description: `Khách hàng ${customer.name} đã được xóa khỏi danh sách`,
-                            variant: "destructive"
-                          });
-                        }} className="text-destructive">
-                          Xóa khách hàng
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleEdit(customer)}
+                    >
+                      <FileEdit className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
