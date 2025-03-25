@@ -93,8 +93,8 @@ const sampleEquipments: Equipment[] = [
   { id: "4", name: "Gimbal DJI Ronin S3 Pro", category: "1", dailyRate: 400000, quantity: 2, isAvailable: true },
   { id: "5", name: "Tripod Secced (100)", category: "1", dailyRate: 300000, quantity: 6, isAvailable: true },
   { id: "6", name: "NISI 82mm Variable ND Filter 1-5 STOP", category: "1", dailyRate: 200000, quantity: 3, isAvailable: true },
-  { id: "7", name: "Monitor Director 18" (4 input)", category: "1", dailyRate: 800000, quantity: 1, isAvailable: true },
-  { id: "8", name: "Monitor 5"", category: "1", dailyRate: 300000, quantity: 3, isAvailable: true },
+  { id: "7", name: 'Monitor Director 18" (4 input)', category: "1", dailyRate: 800000, quantity: 1, isAvailable: true },
+  { id: "8", name: 'Monitor 5"', category: "1", dailyRate: 300000, quantity: 3, isAvailable: true },
   
   // Ánh sáng
   { id: "9", name: "AMARAN F22C", category: "2", dailyRate: 500000, quantity: 6, isAvailable: true },
@@ -109,6 +109,7 @@ const sampleEquipments: Equipment[] = [
   { id: "16", name: "Xe thiết bị", category: "3", dailyRate: 0, quantity: 999, isAvailable: true },
 ];
 
+// Now also fix the sample rental data that uses these items
 const sampleCustomers = [
   { id: "1", name: "Công ty Phim Việt", contact: "Nguyễn Văn A", phone: "0912345678", email: "vanA@phimviet.com", address: "123 Điện Biên Phủ, Quận 1, TP.HCM" },
   { id: "2", name: "Đoàn phim ABC", contact: "Trần Thị B", phone: "0923456789", email: "thiB@abc.com", address: "456 Lê Lợi, Quận 1, TP.HCM" },
@@ -162,7 +163,7 @@ const sampleRentals: RentalOrder[] = [
     endDate: "2023-06-05",
     items: [
       { id: "item5", equipmentId: "1", equipmentName: "SONY FX3 (Body)", quantity: 1, days: 4, dailyRate: 1400000, totalAmount: 5600000 },
-      { id: "item6", equipmentId: "7", equipmentName: "Monitor Director 18" (4 input)", quantity: 1, days: 4, dailyRate: 800000, totalAmount: 3200000 }
+      { id: "item6", equipmentId: "7", equipmentName: 'Monitor Director 18" (4 input)', quantity: 1, days: 4, dailyRate: 800000, totalAmount: 3200000 }
     ],
     totalAmount: 8800000,
     deposit: 4000000,
