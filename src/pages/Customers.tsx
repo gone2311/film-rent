@@ -8,108 +8,15 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { FileEdit, Search, UserPlus } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-// Định nghĩa schema Zod cho form
-const customerFormSchema = z.object({
-  name: z.string().min(1, { message: "Tên công ty không được để trống" }),
-  contact: z.string().min(1, { message: "Tên người liên hệ không được để trống" }),
-  email: z.string().email({ message: "Email không hợp lệ" }),
-  phone: z.string().min(10, { message: "Số điện thoại không hợp lệ" }),
-  address: z.string().min(1, { message: "Địa chỉ không được để trống" }),
-});
-
-type CustomerFormValues = z.infer<typeof customerFormSchema>;
-
-// Định nghĩa type cho khách hàng
-interface Customer {
-  id: number;
-  name: string;
-  contact: string;
-  email: string;
-  phone: string;
-  address: string;
-  totalRentals: number;
-}
-
-// Dữ liệu mẫu cho khách hàng
-const sampleCustomers = [
-  {
-    id: 1,
-    name: "Công ty Phim Việt",
-    contact: "Nguyễn Văn A",
-    email: "contact@phimviet.com",
-    phone: "0912345678",
-    address: "123 Đường Lê Lợi, Quận 1, TP.HCM",
-    totalRentals: 5
-  },
-  {
-    id: 2,
-    name: "Đoàn phim ABC",
-    contact: "Trần Thị B",
-    email: "info@abcfilm.com",
-    phone: "0923456789",
-    address: "456 Đường Nguyễn Huệ, Quận 1, TP.HCM",
-    totalRentals: 3
-  },
-  {
-    id: 3,
-    name: "Studio XYZ",
-    contact: "Lê Văn C",
-    email: "studio@xyz.com",
-    phone: "0934567890",
-    address: "789 Đường Hai Bà Trưng, Quận 3, TP.HCM",
-    totalRentals: 2
-  },
-  {
-    id: 4,
-    name: "Công ty quảng cáo Delta",
-    contact: "Phạm Thị D",
-    email: "info@deltaads.com",
-    phone: "0945678901",
-    address: "101 Đường Điện Biên Phủ, Quận Bình Thạnh, TP.HCM",
-    totalRentals: 4
-  },
-  {
-    id: 5,
-    name: "Phim trường Future",
-    contact: "Hoàng Văn E",
-    email: "contact@futurestudio.com",
-    phone: "0956789012",
-    address: "202 Đường Cách Mạng Tháng 8, Quận 3, TP.HCM",
-    totalRentals: 6
-  }
-];
+import { DialogTrigger } from "@/components/ui/dialog";
+import { Customer } from "@/types/customer";
+import { CustomerForm, CustomerFormValues } from "@/components/customers/CustomerForm";
+import { CustomerTable } from "@/components/customers/CustomerTable";
+import { CustomerSearch } from "@/components/customers/CustomerSearch";
+import { sampleCustomers } from "@/data/customers";
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -117,17 +24,6 @@ const Customers = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const { toast } = useToast();
-
-  const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerFormSchema),
-    defaultValues: {
-      name: "",
-      contact: "",
-      email: "",
-      phone: "",
-      address: "",
-    },
-  });
 
   // Lọc khách hàng theo từ khóa tìm kiếm
   const filteredCustomers = customers.filter(customer => 
@@ -138,17 +34,14 @@ const Customers = () => {
 
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
-    form.reset({
-      name: customer.name,
-      contact: customer.contact,
-      email: customer.email,
-      phone: customer.phone,
-      address: customer.address,
-    });
     setIsDialogOpen(true);
   };
 
-  const onSubmit = (data: CustomerFormValues) => {
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+  };
+
+  const handleFormSubmit = (data: CustomerFormValues) => {
     if (editingCustomer) {
       // Cập nhật khách hàng hiện có
       const updatedCustomers = customers.map(customer => 
@@ -184,7 +77,6 @@ const Customers = () => {
     
     // Reset form và đóng dialog
     setEditingCustomer(null);
-    form.reset();
     setIsDialogOpen(false);
   };
 
@@ -192,101 +84,15 @@ const Customers = () => {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Quản lý khách hàng</h2>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) {
-            setEditingCustomer(null);
-            form.reset();
-          }
+        <DialogTrigger asChild onClick={() => {
+          setEditingCustomer(null);
+          setIsDialogOpen(true);
         }}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Thêm khách hàng
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>{editingCustomer ? "Chỉnh sửa khách hàng" : "Thêm khách hàng mới"}</DialogTitle>
-              <DialogDescription>
-                {editingCustomer ? "Chỉnh sửa thông tin khách hàng." : "Nhập thông tin khách hàng mới vào form bên dưới."}
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tên công ty</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Công ty Phim Việt" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="contact"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Người liên hệ</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nguyễn Văn A" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="contact@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Số điện thoại</FormLabel>
-                      <FormControl>
-                        <Input placeholder="0912345678" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Địa chỉ</FormLabel>
-                      <FormControl>
-                        <Input placeholder="123 Đường Lê Lợi, Quận 1, TP.HCM" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)} type="button">Hủy</Button>
-                  <Button type="submit">{editingCustomer ? "Cập nhật" : "Lưu thông tin"}</Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+          <Button>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Thêm khách hàng
+          </Button>
+        </DialogTrigger>
       </div>
       
       <Card>
@@ -297,49 +103,14 @@ const Customers = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 flex items-center gap-2">
-            <Search className="w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Tìm kiếm khách hàng..."
-              className="max-w-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tên công ty</TableHead>
-                <TableHead>Người liên hệ</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Số điện thoại</TableHead>
-                <TableHead>Địa chỉ</TableHead>
-                <TableHead>Số đơn hàng</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.contact}</TableCell>
-                  <TableCell>{customer.email}</TableCell>
-                  <TableCell>{customer.phone}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{customer.address}</TableCell>
-                  <TableCell>{customer.totalRentals}</TableCell>
-                  <TableCell className="text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => handleEdit(customer)}
-                    >
-                      <FileEdit className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <CustomerSearch 
+            searchTerm={searchTerm} 
+            onSearch={handleSearch} 
+          />
+          <CustomerTable 
+            customers={filteredCustomers} 
+            onEditCustomer={handleEdit} 
+          />
         </CardContent>
         <CardFooter className="flex justify-between">
           <p className="text-sm text-muted-foreground">
@@ -347,6 +118,13 @@ const Customers = () => {
           </p>
         </CardFooter>
       </Card>
+
+      <CustomerForm
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onSubmit={handleFormSubmit}
+        editingCustomer={editingCustomer}
+      />
     </div>
   );
 };
