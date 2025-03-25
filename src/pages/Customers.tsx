@@ -33,6 +33,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Định nghĩa schema Zod cho form
 const customerFormSchema = z.object({
@@ -44,6 +50,17 @@ const customerFormSchema = z.object({
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
+
+// Định nghĩa type cho khách hàng
+interface Customer {
+  id: number;
+  name: string;
+  contact: string;
+  email: string;
+  phone: string;
+  address: string;
+  totalRentals: number;
+}
 
 // Dữ liệu mẫu cho khách hàng
 const sampleCustomers = [
@@ -96,8 +113,9 @@ const sampleCustomers = [
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [customers, setCustomers] = useState(sampleCustomers);
+  const [customers, setCustomers] = useState<Customer[]>(sampleCustomers);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const { toast } = useToast();
 
   const form = useForm<CustomerFormValues>({
@@ -118,27 +136,54 @@ const Customers = () => {
     customer.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const onSubmit = (data: CustomerFormValues) => {
-    // Thêm khách hàng mới vào danh sách
-    const newCustomer = {
-      id: customers.length + 1,
-      name: data.name,
-      contact: data.contact,
-      email: data.email,
-      phone: data.phone,
-      address: data.address,
-      totalRentals: 0
-    };
-    
-    setCustomers([...customers, newCustomer]);
-    
-    // Hiển thị thông báo
-    toast({
-      title: "Tạo khách hàng thành công",
-      description: `Đã thêm khách hàng ${data.name}`,
+  const handleEdit = (customer: Customer) => {
+    setEditingCustomer(customer);
+    form.reset({
+      name: customer.name,
+      contact: customer.contact,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address,
     });
+    setIsDialogOpen(true);
+  };
+
+  const onSubmit = (data: CustomerFormValues) => {
+    if (editingCustomer) {
+      // Cập nhật khách hàng hiện có
+      const updatedCustomers = customers.map(customer => 
+        customer.id === editingCustomer.id 
+          ? { ...customer, ...data } 
+          : customer
+      );
+      setCustomers(updatedCustomers);
+      
+      toast({
+        title: "Cập nhật thành công",
+        description: `Đã cập nhật thông tin khách hàng ${data.name}`,
+      });
+    } else {
+      // Thêm khách hàng mới vào danh sách
+      const newCustomer = {
+        id: customers.length + 1,
+        name: data.name,
+        contact: data.contact,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        totalRentals: 0
+      };
+      
+      setCustomers([...customers, newCustomer]);
+      
+      toast({
+        title: "Tạo khách hàng thành công",
+        description: `Đã thêm khách hàng ${data.name}`,
+      });
+    }
     
     // Reset form và đóng dialog
+    setEditingCustomer(null);
     form.reset();
     setIsDialogOpen(false);
   };
@@ -147,7 +192,13 @@ const Customers = () => {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Quản lý khách hàng</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) {
+            setEditingCustomer(null);
+            form.reset();
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <UserPlus className="mr-2 h-4 w-4" />
@@ -156,9 +207,9 @@ const Customers = () => {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Thêm khách hàng mới</DialogTitle>
+              <DialogTitle>{editingCustomer ? "Chỉnh sửa khách hàng" : "Thêm khách hàng mới"}</DialogTitle>
               <DialogDescription>
-                Nhập thông tin khách hàng mới vào form bên dưới.
+                {editingCustomer ? "Chỉnh sửa thông tin khách hàng." : "Nhập thông tin khách hàng mới vào form bên dưới."}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -230,7 +281,7 @@ const Customers = () => {
                 />
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)} type="button">Hủy</Button>
-                  <Button type="submit">Lưu thông tin</Button>
+                  <Button type="submit">{editingCustomer ? "Cập nhật" : "Lưu thông tin"}</Button>
                 </DialogFooter>
               </form>
             </Form>
@@ -277,9 +328,28 @@ const Customers = () => {
                   <TableCell className="max-w-[200px] truncate">{customer.address}</TableCell>
                   <TableCell>{customer.totalRentals}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon">
-                      <FileEdit className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <FileEdit className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEdit(customer)}>
+                          Chỉnh sửa
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setCustomers(customers.filter(c => c.id !== customer.id));
+                          toast({
+                            title: "Đã xóa khách hàng",
+                            description: `Khách hàng ${customer.name} đã được xóa khỏi danh sách`,
+                            variant: "destructive"
+                          });
+                        }} className="text-destructive">
+                          Xóa khách hàng
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
