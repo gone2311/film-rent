@@ -17,6 +17,17 @@ import Quotes from "./pages/Quotes";
 import Reconciliation from "./pages/Reconciliation";
 import Settings from "./pages/Settings";
 import { useState } from "react";
+import { Navbar } from "./components/ui/navbar";
+
+// Tạo component MainLayout để bọc tất cả các trang chính với thanh điều hướng
+const MainLayout = ({ children }) => {
+  return (
+    <>
+      <Navbar />
+      {children}
+    </>
+  );
+};
 
 const App = () => {
   // Move QueryClient initialization inside the component
@@ -31,15 +42,51 @@ const App = () => {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/equipment" element={<Equipment />} />
-              <Route path="/rentals" element={<Rentals />} />
-              <Route path="/customers" element={<Customers />} />
-              <Route path="/backdrop" element={<Backdrop />} />
-              <Route path="/debts" element={<Debts />} />
-              <Route path="/quotes" element={<Quotes />} />
-              <Route path="/reconciliation" element={<Reconciliation />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/dashboard" element={
+                <MainLayout>
+                  <Dashboard />
+                </MainLayout>
+              } />
+              <Route path="/equipment" element={
+                <MainLayout>
+                  <Equipment />
+                </MainLayout>
+              } />
+              <Route path="/rentals" element={
+                <MainLayout>
+                  <Rentals />
+                </MainLayout>
+              } />
+              <Route path="/customers" element={
+                <MainLayout>
+                  <Customers />
+                </MainLayout>
+              } />
+              <Route path="/backdrop" element={
+                <MainLayout>
+                  <Backdrop />
+                </MainLayout>
+              } />
+              <Route path="/debts" element={
+                <MainLayout>
+                  <Debts />
+                </MainLayout>
+              } />
+              <Route path="/quotes" element={
+                <MainLayout>
+                  <Quotes />
+                </MainLayout>
+              } />
+              <Route path="/reconciliation" element={
+                <MainLayout>
+                  <Reconciliation />
+                </MainLayout>
+              } />
+              <Route path="/settings" element={
+                <MainLayout>
+                  <Settings />
+                </MainLayout>
+              } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
