@@ -484,7 +484,7 @@ const Rentals = () => {
 
       {/* Create Rental Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Tạo đơn thuê mới</DialogTitle>
           </DialogHeader>
@@ -513,7 +513,7 @@ const Rentals = () => {
 
       {/* Edit Rental Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Chỉnh sửa đơn thuê #{selectedRental?.id}</DialogTitle>
           </DialogHeader>
@@ -545,7 +545,7 @@ const Rentals = () => {
 
       {/* Quote View Dialog */}
       <Dialog open={isQuoteDialogOpen} onOpenChange={setIsQuoteDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Báo giá</DialogTitle>
           </DialogHeader>
