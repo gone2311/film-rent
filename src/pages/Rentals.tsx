@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -678,4 +679,229 @@ const Rentals = () => {
     setIsHandoverDialogOpen(false);
     setSelectedRental(null);
     
-    toast
+    toast({
+      title: "Tạo báo cáo bàn giao",
+      description: `Đã tạo báo cáo bàn giao cho đơn hàng #${selectedRental.id}`,
+    });
+  };
+
+  const onMaintenanceSubmit = (data: MaintenanceFormValues) => {
+    if (!selectedEquipment) return;
+    
+    const updatedEquipment: Equipment = {
+      ...selectedEquipment,
+      maintenanceNotes: data.maintenanceNotes,
+      maintenanceLocation: data.maintenanceLocation,
+      status: "Bảo trì"
+    };
+    
+    setEquipments(prevEquipments => 
+      prevEquipments.map(equipment => 
+        equipment.id === selectedEquipment.id ? updatedEquipment : equipment
+      )
+    );
+    
+    maintenanceForm.reset();
+    setIsMaintenanceDialogOpen(false);
+    setSelectedEquipment(null);
+    
+    toast({
+      title: "Cập nhật bảo trì",
+      description: `Đã cập nhật thông tin bảo trì cho ${updatedEquipment.name}`,
+    });
+  };
+
+  // Render UI components
+  // This section would render the actual UI components of the Rentals page
+
+  return (
+    <div className="container mx-auto py-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Quản lý đơn thuê thiết bị</h1>
+        <Button 
+          onClick={() => {
+            setSelectedItems([]);
+            form.reset();
+            setIsDialogOpen(true);
+          }}
+        >
+          <PlusCircle className="mr-2 h-4 w-4" /> Tạo đơn mới
+        </Button>
+      </div>
+
+      <div className="relative mb-6">
+        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Tìm kiếm theo tên khách hàng, thiết bị, trạng thái..."
+          className="pl-8"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      <Tabs defaultValue="active">
+        <TabsList className="mb-4">
+          <TabsTrigger value="active">Đơn thuê hiện tại</TabsTrigger>
+          <TabsTrigger value="completed">Đơn đã hoàn thành</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="active">
+          <Card>
+            <CardHeader>
+              <CardTitle>Danh sách đơn thuê hiện tại</CardTitle>
+              <CardDescription>
+                Quản lý các đơn thuê đang hoạt động và đã đặt trước
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Mã đơn</TableHead>
+                    <TableHead>Khách hàng</TableHead>
+                    <TableHead>Thời gian thuê</TableHead>
+                    <TableHead>Tổng tiền</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead>Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRentals
+                    .filter(rental => rental.status !== "Hoàn thành")
+                    .map(rental => (
+                      <TableRow key={rental.id}>
+                        <TableCell className="font-medium">#{rental.id}</TableCell>
+                        <TableCell>{rental.customerName}</TableCell>
+                        <TableCell>
+                          {formatDate(rental.startDate)} - {formatDate(rental.endDate)}
+                        </TableCell>
+                        <TableCell>{formatCurrency(rental.totalAmount)}</TableCell>
+                        <TableCell>
+                          <div className={cn(
+                            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                            rental.status === "Đặt trước" ? "bg-blue-100 text-blue-800" :
+                            rental.status === "Đang thuê" ? "bg-green-100 text-green-800" :
+                            "bg-gray-100 text-gray-800"
+                          )}>
+                            {rental.status}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEditRental(rental)}>
+                                <FileEdit className="mr-2 h-4 w-4" /> Chỉnh sửa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewQuote(rental)}>
+                                <FileText className="mr-2 h-4 w-4" /> Xem báo giá
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {rental.status === "Đặt trước" && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(rental.id, "Đang thuê")}>
+                                  <CheckSquare className="mr-2 h-4 w-4" /> Chuyển sang đang thuê
+                                </DropdownMenuItem>
+                              )}
+                              {rental.status === "Đang thuê" && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(rental.id, "Hoàn thành")}>
+                                  <CheckSquare className="mr-2 h-4 w-4" /> Đánh dấu hoàn thành
+                                </DropdownMenuItem>
+                              )}
+                              {!rental.handoverCompleted && (
+                                <DropdownMenuItem onClick={() => handleCreateHandover(rental)}>
+                                  <ClipboardCheck className="mr-2 h-4 w-4" /> Tạo biên bản bàn giao
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteRental(rental.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Xóa đơn hàng
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="completed">
+          <Card>
+            <CardHeader>
+              <CardTitle>Danh sách đơn thuê đã hoàn thành</CardTitle>
+              <CardDescription>
+                Lịch sử các đơn thuê đã hoàn thành
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Mã đơn</TableHead>
+                    <TableHead>Khách hàng</TableHead>
+                    <TableHead>Thời gian thuê</TableHead>
+                    <TableHead>Tổng tiền</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead>Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRentals
+                    .filter(rental => rental.status === "Hoàn thành")
+                    .map(rental => (
+                      <TableRow key={rental.id}>
+                        <TableCell className="font-medium">#{rental.id}</TableCell>
+                        <TableCell>{rental.customerName}</TableCell>
+                        <TableCell>
+                          {formatDate(rental.startDate)} - {formatDate(rental.endDate)}
+                        </TableCell>
+                        <TableCell>{formatCurrency(rental.totalAmount)}</TableCell>
+                        <TableCell>
+                          <div className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">
+                            {rental.status}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewQuote(rental)}>
+                                <FileText className="mr-2 h-4 w-4" /> Xem báo giá
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteRental(rental.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Xóa đơn hàng
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialog forms and other UI components would go here */}
+    </div>
+  );
+};
+
+export default Rentals;
