@@ -569,3 +569,113 @@ const Rentals = () => {
       startDate: format(data.startDate, "yyyy-MM-dd"),
       endDate: format(data.endDate, "yyyy-MM-dd"),
       items: selectedItems,
+      totalAmount,
+      deposit: data.deposit,
+      balance,
+      status: data.status,
+      notes: data.notes,
+      createdAt: format(new Date(), "yyyy-MM-dd"),
+      discount: data.discount,
+      handoverCompleted: false
+    };
+    
+    setRentals([...rentals, newRental]);
+    setSelectedItems([]);
+    form.reset();
+    setIsDialogOpen(false);
+    
+    toast({
+      title: "Tạo đơn hàng mới",
+      description: `Đã tạo đơn hàng mới cho ${customer.name}`,
+    });
+  };
+
+  const onEditSubmit = (data: RentalFormValues) => {
+    if (!selectedRental) return;
+    
+    const customer = sampleCustomers.find(c => c.id === data.customerId);
+    if (!customer) return;
+    
+    const totalAmount = calculateDiscountedTotal(selectedItems);
+    const balance = totalAmount - data.deposit;
+    
+    const updatedRental: RentalOrder = {
+      ...selectedRental,
+      customerId: data.customerId,
+      customerName: customer.name,
+      contact: customer.contact,
+      startDate: format(data.startDate, "yyyy-MM-dd"),
+      endDate: format(data.endDate, "yyyy-MM-dd"),
+      items: selectedItems,
+      totalAmount,
+      deposit: data.deposit,
+      balance,
+      status: data.status,
+      notes: data.notes,
+      discount: data.discount
+    };
+    
+    setRentals(prevRentals => 
+      prevRentals.map(rental => 
+        rental.id === selectedRental.id ? updatedRental : rental
+      )
+    );
+    
+    // Update related debt if exists
+    const relatedDebt = debts.find(debt => debt.relatedOrderId === selectedRental.id);
+    if (relatedDebt) {
+      const updatedDebt: Debt = {
+        ...relatedDebt,
+        customerName: customer.name,
+        contact: customer.contact,
+        amount: balance
+      };
+      
+      setDebts(prevDebts => 
+        prevDebts.map(debt => 
+          debt.id === relatedDebt.id ? updatedDebt : debt
+        )
+      );
+    }
+    
+    setSelectedItems([]);
+    editForm.reset();
+    setIsEditDialogOpen(false);
+    setSelectedRental(null);
+    
+    toast({
+      title: "Cập nhật đơn hàng",
+      description: `Đã cập nhật đơn hàng #${selectedRental.id}`,
+    });
+  };
+
+  const onHandoverSubmit = (data: HandoverFormValues) => {
+    if (!selectedRental) return;
+    
+    const newHandoverReport: HandoverReport = {
+      id: handoverReports.length + 1,
+      rentalId: selectedRental.id,
+      customerName: selectedRental.customerName,
+      date: format(new Date(), "yyyy-MM-dd"),
+      items: selectedRental.items,
+      notes: data.notes || "",
+      signedByCustomer: data.signedByCustomer,
+      signedByStaff: data.signedByStaff
+    };
+    
+    setHandoverReports([...handoverReports, newHandoverReport]);
+    
+    // Update rental handoverCompleted status
+    setRentals(prevRentals => 
+      prevRentals.map(rental => 
+        rental.id === selectedRental.id 
+          ? { ...rental, handoverCompleted: true } 
+          : rental
+      )
+    );
+    
+    handoverForm.reset();
+    setIsHandoverDialogOpen(false);
+    setSelectedRental(null);
+    
+    toast

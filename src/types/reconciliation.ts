@@ -1,3 +1,4 @@
+
 export interface RentalItem {
   id: number;
   description: string;
@@ -34,22 +35,30 @@ export interface Partner {
   email: string;
   phone: string;
   address: string;
-  type?: string;
+  type: string;
 }
 
 export interface EquipmentCategory {
   id: string;
   name: string;
+  type: string;
 }
 
 export interface Equipment {
-  id: string;
+  id: string | number;
   name: string;
   category: string;
   dailyRate: number;
   description?: string;
   quantity: number;
   isAvailable: boolean;
+  equipmentType: string;
+  status?: string;
+  condition?: string;
+  serialNumber?: string;
+  rentalCount?: number;
+  maintenanceNotes?: string;
+  maintenanceLocation?: string;
 }
 
 export interface RentalItemDetail {
@@ -60,6 +69,7 @@ export interface RentalItemDetail {
   days: number;
   dailyRate: number;
   totalAmount: number;
+  discount?: number;
 }
 
 export interface RentalOrder {
@@ -76,6 +86,8 @@ export interface RentalOrder {
   status: string;
   notes?: string;
   createdAt: string;
+  discount?: number;
+  handoverCompleted?: boolean;
 }
 
 export interface Debt {
@@ -90,3 +102,4 @@ export interface Debt {
   status: string;
   relatedOrderId?: number;
 }
+
