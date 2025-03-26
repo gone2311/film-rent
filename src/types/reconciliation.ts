@@ -34,6 +34,7 @@ export interface Partner {
   email: string;
   phone: string;
   address: string;
+  type?: string;
 }
 
 export interface EquipmentCategory {
