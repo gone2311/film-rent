@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: number;
   name: string;
@@ -9,11 +10,17 @@ export interface Customer {
 }
 
 export interface Equipment {
-  id: string;
+  id: number;
   name: string;
   category: string;
+  serialNumber: string;
   dailyRate: number;
   quantity: number;
+  status: "Sẵn sàng" | "Đang thuê" | "Bảo trì";
+  condition: string;
+  purchasePrice?: number;
+  purchaseDate?: string;
+  rentalCount: number;
   isAvailable: boolean;
   maintenanceNotes?: string;
   maintenanceLocation?: string;
