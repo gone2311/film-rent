@@ -1,4 +1,5 @@
 
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,7 +47,7 @@ export const CustomerForm = ({ isOpen, onOpenChange, onSubmit, editingCustomer }
   });
 
   // Reset form when editingCustomer changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (editingCustomer) {
       form.reset({
         name: editingCustomer.name,
