@@ -30,7 +30,7 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
-import { CalendarIcon, FileEdit, MoreHorizontal, PlusCircle, MinusCircle, Search, Trash2, Calculator, FileText } from "lucide-react";
+import { CalendarIcon, FileEdit, MoreHorizontal, PlusCircle, MinusCircle, Search, Trash2, Calculator, FileText, CheckSquare, ClipboardCheck, Wrench, Percent } from "lucide-react";
 import React, { useEffect, useState, Fragment } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -63,7 +63,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatDate, calculateDaysBetween, calculateTotal } from "@/utils/formatters";
 import { Textarea } from "@/components/ui/textarea";
-import { Equipment, EquipmentCategory, RentalItemDetail, RentalOrder, Debt } from "@/types/reconciliation";
+import { Equipment, EquipmentCategory, RentalItemDetail, RentalOrder, Debt, HandoverReport } from "@/types/customer";
 import { samplePartners } from "@/data/partners";
 
 const rentalFormSchema = z.object({
@@ -73,9 +73,25 @@ const rentalFormSchema = z.object({
   deposit: z.number().min(0, { message: "Tiền đặt cọc không hợp lệ" }),
   notes: z.string().optional(),
   status: z.string().min(1, { message: "Vui lòng chọn trạng thái" }),
+  discount: z.number().min(0).max(100).optional(),
 });
 
 type RentalFormValues = z.infer<typeof rentalFormSchema>;
+
+const handoverFormSchema = z.object({
+  notes: z.string().optional(),
+  signedByCustomer: z.boolean().default(false),
+  signedByStaff: z.boolean().default(false),
+});
+
+type HandoverFormValues = z.infer<typeof handoverFormSchema>;
+
+const maintenanceFormSchema = z.object({
+  maintenanceNotes: z.string().min(1, { message: "Vui lòng nhập ghi chú bảo trì" }),
+  maintenanceLocation: z.string().min(1, { message: "Vui lòng nhập địa điểm bảo trì" }),
+});
+
+type MaintenanceFormValues = z.infer<typeof maintenanceFormSchema>;
 
 // Sample data for equipment categories
 const equipmentCategories: EquipmentCategory[] = [
@@ -128,14 +144,15 @@ const sampleRentals: RentalOrder[] = [
     startDate: "2023-05-10",
     endDate: "2023-05-15",
     items: [
-      { id: "item1", equipmentId: "1", equipmentName: "SONY FX3 (Body)", quantity: 1, days: 5, dailyRate: 1400000, totalAmount: 7000000 },
-      { id: "item2", equipmentId: "2", equipmentName: "SONY FE 70-200mm F2.8 GM", quantity: 1, days: 5, dailyRate: 500000, totalAmount: 2500000 }
+      { id: "item1", equipmentId: "1", equipmentName: "SONY FX3 (Body)", quantity: 1, days: 5, dailyRate: 1400000, totalAmount: 7000000, discount: 0 },
+      { id: "item2", equipmentId: "2", equipmentName: "SONY FE 70-200mm F2.8 GM", quantity: 1, days: 5, dailyRate: 500000, totalAmount: 2500000, discount: 0 }
     ],
     totalAmount: 9500000,
     deposit: 4000000,
     balance: 5500000,
     status: "Hoàn thành",
-    createdAt: "2023-05-09"
+    createdAt: "2023-05-09",
+    handoverCompleted: true
   },
   {
     id: 2,
@@ -145,14 +162,15 @@ const sampleRentals: RentalOrder[] = [
     startDate: "2023-05-20",
     endDate: "2023-05-25",
     items: [
-      { id: "item3", equipmentId: "4", equipmentName: "Gimbal DJI Ronin S3 Pro", quantity: 1, days: 5, dailyRate: 400000, totalAmount: 2000000 },
-      { id: "item4", equipmentId: "3", equipmentName: "SONY FE 85mm F1.4 GM", quantity: 1, days: 5, dailyRate: 500000, totalAmount: 2500000 }
+      { id: "item3", equipmentId: "4", equipmentName: "Gimbal DJI Ronin S3 Pro", quantity: 1, days: 5, dailyRate: 400000, totalAmount: 2000000, discount: 0 },
+      { id: "item4", equipmentId: "3", equipmentName: "SONY FE 85mm F1.4 GM", quantity: 1, days: 5, dailyRate: 500000, totalAmount: 2500000, discount: 0 }
     ],
     totalAmount: 4500000,
     deposit: 2000000,
     balance: 2500000,
     status: "Đang thuê",
-    createdAt: "2023-05-19"
+    createdAt: "2023-05-19",
+    handoverCompleted: true
   },
   {
     id: 3,
@@ -162,14 +180,15 @@ const sampleRentals: RentalOrder[] = [
     startDate: "2023-06-01",
     endDate: "2023-06-05",
     items: [
-      { id: "item5", equipmentId: "1", equipmentName: "SONY FX3 (Body)", quantity: 1, days: 4, dailyRate: 1400000, totalAmount: 5600000 },
-      { id: "item6", equipmentId: "7", equipmentName: 'Monitor Director 18" (4 input)', quantity: 1, days: 4, dailyRate: 800000, totalAmount: 3200000 }
+      { id: "item5", equipmentId: "1", equipmentName: "SONY FX3 (Body)", quantity: 1, days: 4, dailyRate: 1400000, totalAmount: 5600000, discount: 0 },
+      { id: "item6", equipmentId: "7", equipmentName: 'Monitor Director 18" (4 input)', quantity: 1, days: 4, dailyRate: 800000, totalAmount: 3200000, discount: 0 }
     ],
     totalAmount: 8800000,
     deposit: 4000000,
     balance: 4800000,
     status: "Đặt trước",
-    createdAt: "2023-05-25"
+    createdAt: "2023-05-25",
+    handoverCompleted: false
   }
 ];
 
@@ -201,14 +220,81 @@ const sampleDebts: Debt[] = [
   }
 ];
 
+// Sample handover reports
+const sampleHandoverReports: HandoverReport[] = [
+  {
+    id: 1,
+    rentalId: 1,
+    customerName: "Công ty Phim Việt",
+    date: "2023-05-10",
+    items: [
+      { id: "item1", equipmentId: "1", equipmentName: "SONY FX3 (Body)", quantity: 1, days: 5, dailyRate: 1400000, totalAmount: 7000000 },
+      { id: "item2", equipmentId: "2", equipmentName: "SONY FE 70-200mm F2.8 GM", quantity: 1, days: 5, dailyRate: 500000, totalAmount: 2500000 }
+    ],
+    notes: "Thiết bị đã được kiểm tra đầy đủ trước khi bàn giao.",
+    signedByCustomer: true,
+    signedByStaff: true
+  },
+  {
+    id: 2,
+    rentalId: 2,
+    customerName: "Đoàn phim ABC",
+    date: "2023-05-20",
+    items: [
+      { id: "item3", equipmentId: "4", equipmentName: "Gimbal DJI Ronin S3 Pro", quantity: 1, days: 5, dailyRate: 400000, totalAmount: 2000000 },
+      { id: "item4", equipmentId: "3", equipmentName: "SONY FE 85mm F1.4 GM", quantity: 1, days: 5, dailyRate: 500000, totalAmount: 2500000 }
+    ],
+    notes: "Khách hàng yêu cầu thêm pin dự phòng cho máy.",
+    signedByCustomer: true,
+    signedByStaff: true
+  }
+];
+
+// Hàm tính khấu hao (60% giá cho thuê trên 1 ngày)
+const calculateDepreciation = (item: RentalItemDetail) => {
+  // Chỉ tính khấu hao cho thiết bị thuộc category 1 và 2 (máy quay và ánh sáng)
+  const equipment = sampleEquipments.find(eq => eq.id === item.equipmentId);
+  if (!equipment || equipment.category === "3") return 0;
+  
+  return item.dailyRate * 0.6 * item.quantity * item.days;
+};
+
+// Hàm tính tổng khấu hao cho tất cả thiết bị trong đơn hàng
+const calculateTotalDepreciation = (items: RentalItemDetail[]) => {
+  return items.reduce((total, item) => total + calculateDepreciation(item), 0);
+};
+
+// Hàm tính giá sau khi giảm giá
+const calculateDiscountedTotal = (items: RentalItemDetail[]) => {
+  return items.reduce((total, item) => {
+    const equipment = sampleEquipments.find(eq => eq.id === item.equipmentId);
+    if (!equipment) return total;
+    
+    // Chỉ áp dụng giảm giá cho thiết bị category 1 và 2 (máy quay và ánh sáng)
+    if (equipment.category === "1" || equipment.category === "2") {
+      const discount = item.discount || 0;
+      const discountAmount = (item.dailyRate * item.quantity * item.days) * (discount / 100);
+      return total + (item.dailyRate * item.quantity * item.days) - discountAmount;
+    } else {
+      // Không áp dụng giảm giá cho nhân sự và dịch vụ khác
+      return total + (item.dailyRate * item.quantity * item.days);
+    }
+  }, 0);
+};
+
 const Rentals = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [rentals, setRentals] = useState(sampleRentals);
   const [debts, setDebts] = useState(sampleDebts);
+  const [handoverReports, setHandoverReports] = useState(sampleHandoverReports);
+  const [equipments, setEquipments] = useState(sampleEquipments);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
+  const [isHandoverDialogOpen, setIsHandoverDialogOpen] = useState(false);
+  const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedRental, setSelectedRental] = useState<RentalOrder | null>(null);
+  const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [selectedItems, setSelectedItems] = useState<RentalItemDetail[]>([]);
   const { toast } = useToast();
 
@@ -221,6 +307,7 @@ const Rentals = () => {
       deposit: 0,
       notes: "",
       status: "Đặt trước",
+      discount: 0,
     },
   });
 
@@ -233,6 +320,24 @@ const Rentals = () => {
       deposit: 0,
       notes: "",
       status: "Đặt trước",
+      discount: 0,
+    },
+  });
+
+  const handoverForm = useForm<HandoverFormValues>({
+    resolver: zodResolver(handoverFormSchema),
+    defaultValues: {
+      notes: "",
+      signedByCustomer: false,
+      signedByStaff: false,
+    },
+  });
+
+  const maintenanceForm = useForm<MaintenanceFormValues>({
+    resolver: zodResolver(maintenanceFormSchema),
+    defaultValues: {
+      maintenanceNotes: "",
+      maintenanceLocation: "",
     },
   });
 
@@ -247,7 +352,7 @@ const Rentals = () => {
           ? { 
               ...item, 
               quantity: item.quantity + 1,
-              totalAmount: (item.quantity + 1) * item.days * item.dailyRate
+              totalAmount: (item.quantity + 1) * item.days * item.dailyRate * (1 - ((item.discount || 0) / 100))
             } 
           : item
       );
@@ -263,6 +368,7 @@ const Rentals = () => {
           ? calculateDaysBetween(format(form.getValues("startDate")!, 'yyyy-MM-dd'), format(form.getValues("endDate")!, 'yyyy-MM-dd'))
           : 1,
         dailyRate: equipment.dailyRate,
+        discount: 0,
         totalAmount: equipment.dailyRate
       };
       setSelectedItems([...selectedItems, newItem]);
@@ -281,7 +387,7 @@ const Rentals = () => {
         ? { 
             ...item, 
             quantity,
-            totalAmount: quantity * item.days * item.dailyRate
+            totalAmount: quantity * item.days * item.dailyRate * (1 - ((item.discount || 0) / 100))
           } 
         : item
     );
@@ -293,6 +399,25 @@ const Rentals = () => {
     setSelectedItems(selectedItems.filter(item => item.id !== itemId));
   };
 
+  // Update equipment discount
+  const updateEquipmentDiscount = (itemId: string, discount: number) => {
+    const updatedItems = selectedItems.map(item => {
+      if (item.id === itemId) {
+        const equipment = sampleEquipments.find(eq => eq.id === item.equipmentId);
+        
+        // Chỉ áp dụng giảm giá cho thiết bị category 1 và 2 (máy quay và ánh sáng)
+        if (equipment && (equipment.category === "1" || equipment.category === "2")) {
+          const newDiscount = Math.min(Math.max(0, discount), 100); // Ensure discount is between 0-100
+          const newTotalAmount = item.quantity * item.days * item.dailyRate * (1 - (newDiscount / 100));
+          return { ...item, discount: newDiscount, totalAmount: newTotalAmount };
+        }
+      }
+      return item;
+    });
+    
+    setSelectedItems(updatedItems);
+  };
+
   // Calculate total when items or dates change
   useEffect(() => {
     if (form.getValues("startDate") && form.getValues("endDate")) {
@@ -301,11 +426,15 @@ const Rentals = () => {
       const days = calculateDaysBetween(startDate, endDate);
       
       // Update days for all items
-      const updatedItems = selectedItems.map(item => ({
-        ...item,
-        days,
-        totalAmount: item.quantity * days * item.dailyRate
-      }));
+      const updatedItems = selectedItems.map(item => {
+        const discountPercent = item.discount || 0;
+        const discountMultiplier = 1 - (discountPercent / 100);
+        return {
+          ...item,
+          days,
+          totalAmount: item.quantity * days * item.dailyRate * discountMultiplier
+        };
+      });
       
       setSelectedItems(updatedItems);
     }
@@ -318,11 +447,15 @@ const Rentals = () => {
       const endDate = format(editForm.getValues("endDate")!, 'yyyy-MM-dd');
       const days = calculateDaysBetween(startDate, endDate);
       
-      const updatedItems = selectedItems.map(item => ({
-        ...item,
-        days,
-        totalAmount: item.quantity * days * item.dailyRate
-      }));
+      const updatedItems = selectedItems.map(item => {
+        const discountPercent = item.discount || 0;
+        const discountMultiplier = 1 - (discountPercent / 100);
+        return {
+          ...item,
+          days,
+          totalAmount: item.quantity * days * item.dailyRate * discountMultiplier
+        };
+      });
       
       setSelectedItems(updatedItems);
     }
@@ -341,7 +474,8 @@ const Rentals = () => {
       endDate,
       deposit: rental.deposit,
       notes: rental.notes || "",
-      status: rental.status
+      status: rental.status,
+      discount: rental.discount || 0
     });
     
     setIsEditDialogOpen(true);
@@ -350,6 +484,29 @@ const Rentals = () => {
   const handleViewQuote = (rental: RentalOrder) => {
     setSelectedRental(rental);
     setIsQuoteDialogOpen(true);
+  };
+
+  const handleCreateHandover = (rental: RentalOrder) => {
+    setSelectedRental(rental);
+    
+    handoverForm.reset({
+      notes: "",
+      signedByCustomer: false,
+      signedByStaff: false,
+    });
+    
+    setIsHandoverDialogOpen(true);
+  };
+
+  const handleMaintenanceDialog = (equipment: Equipment) => {
+    setSelectedEquipment(equipment);
+    
+    maintenanceForm.reset({
+      maintenanceNotes: equipment.maintenanceNotes || "",
+      maintenanceLocation: equipment.maintenanceLocation || "",
+    });
+    
+    setIsMaintenanceDialogOpen(true);
   };
 
   const handleStatusChange = (rentalId: number, newStatus: string) => {
@@ -431,7 +588,7 @@ const Rentals = () => {
     const customer = sampleCustomers.find(c => c.id === data.customerId);
     if (!customer) return;
     
-    const totalAmount = calculateTotal(selectedItems);
+    const totalAmount = calculateDiscountedTotal(selectedItems);
     const balance = totalAmount - data.deposit;
     
     const newRental: RentalOrder = {
@@ -447,7 +604,9 @@ const Rentals = () => {
       balance,
       status: data.status,
       notes: data.notes,
-      createdAt: new Date().toISOString().split('T')[0]
+      discount: data.discount,
+      createdAt: new Date().toISOString().split('T')[0],
+      handoverCompleted: false
     };
     
     setRentals([...rentals, newRental]);
@@ -494,7 +653,7 @@ const Rentals = () => {
     const customer = sampleCustomers.find(c => c.id === data.customerId);
     if (!customer) return;
     
-    const totalAmount = calculateTotal(selectedItems);
+    const totalAmount = calculateDiscountedTotal(selectedItems);
     const balance = totalAmount - data.deposit;
     
     const updatedRental: RentalOrder = {
@@ -509,7 +668,8 @@ const Rentals = () => {
       deposit: data.deposit,
       balance,
       status: data.status,
-      notes: data.notes
+      notes: data.notes,
+      discount: data.discount
     };
     
     setRentals(prevRentals => 
@@ -561,6 +721,69 @@ const Rentals = () => {
     setSelectedItems([]);
     setIsEditDialogOpen(false);
     setSelectedRental(null);
+  };
+
+  const onHandoverSubmit = (data: HandoverFormValues) => {
+    if (!selectedRental) return;
+    
+    // Create new handover report
+    const newHandoverReport: HandoverReport = {
+      id: handoverReports.length + 1,
+      rentalId: selectedRental.id,
+      customerName: selectedRental.customerName,
+      date: new Date().toISOString().split('T')[0],
+      items: selectedRental.items,
+      notes: data.notes || "",
+      signedByCustomer: data.signedByCustomer,
+      signedByStaff: data.signedByStaff
+    };
+    
+    setHandoverReports([...handoverReports, newHandoverReport]);
+    
+    // Update rental to mark handover as completed
+    setRentals(prevRentals => 
+      prevRentals.map(rental => 
+        rental.id === selectedRental.id 
+          ? { ...rental, handoverCompleted: true } 
+          : rental
+      )
+    );
+    
+    toast({
+      title: "Tạo biên bản bàn giao",
+      description: `Đã tạo biên bản bàn giao cho đơn hàng #${selectedRental.id}`,
+    });
+    
+    handoverForm.reset();
+    setIsHandoverDialogOpen(false);
+    setSelectedRental(null);
+  };
+
+  const onMaintenanceSubmit = (data: MaintenanceFormValues) => {
+    if (!selectedEquipment) return;
+    
+    // Update equipment with maintenance info
+    const updatedEquipments = equipments.map(equipment => 
+      equipment.id === selectedEquipment.id 
+        ? { 
+            ...equipment, 
+            maintenanceNotes: data.maintenanceNotes,
+            maintenanceLocation: data.maintenanceLocation,
+            isAvailable: false 
+          } 
+        : equipment
+    );
+    
+    setEquipments(updatedEquipments);
+    
+    toast({
+      title: "Cập nhật thông tin bảo trì",
+      description: `Đã cập nhật thông tin bảo trì cho thiết bị ${selectedEquipment.name}`,
+    });
+    
+    maintenanceForm.reset();
+    setIsMaintenanceDialogOpen(false);
+    setSelectedEquipment(null);
   };
 
   return (
@@ -642,6 +865,7 @@ const Rentals = () => {
                                   selected={field.value}
                                   onSelect={field.onChange}
                                   initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
                                 />
                               </PopoverContent>
                             </Popover>
@@ -681,6 +905,7 @@ const Rentals = () => {
                                   selected={field.value}
                                   onSelect={field.onChange}
                                   initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
                                 />
                               </PopoverContent>
                             </Popover>
@@ -712,28 +937,49 @@ const Rentals = () => {
                       
                       <FormField
                         control={form.control}
-                        name="status"
+                        name="discount"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Trạng thái</FormLabel>
+                            <FormLabel>Giảm giá (%)</FormLabel>
                             <FormControl>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Chọn trạng thái" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Đặt trước">Đặt trước</SelectItem>
-                                  <SelectItem value="Đang thuê">Đang thuê</SelectItem>
-                                  <SelectItem value="Hoàn thành">Hoàn thành</SelectItem>
-                                  <SelectItem value="Đã hủy">Đã hủy</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                placeholder="0"
+                                {...field}
+                                onChange={e => field.onChange(Number(e.target.value))}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
+
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Trạng thái</FormLabel>
+                          <FormControl>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Chọn trạng thái" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Đặt trước">Đặt trước</SelectItem>
+                                <SelectItem value="Đang thuê">Đang thuê</SelectItem>
+                                <SelectItem value="Hoàn thành">Hoàn thành</SelectItem>
+                                <SelectItem value="Đã hủy">Đã hủy</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
                     <FormField
                       control={form.control}
@@ -769,8 +1015,8 @@ const Rentals = () => {
                         
                         {equipmentCategories.map(category => (
                           <TabsContent key={category.id} value={category.id} className="mt-4 space-y-2">
-                            {sampleEquipments
-                              .filter(eq => eq.category === category.id)
+                            {equipments
+                              .filter(eq => eq.category === category.id && eq.isAvailable)
                               .map(equipment => (
                                 <div key={equipment.id} className="flex justify-between items-center border-b pb-2">
                                   <div>
@@ -778,15 +1024,32 @@ const Rentals = () => {
                                     <p className="text-sm text-muted-foreground">
                                       {formatCurrency(equipment.dailyRate)}/ngày
                                     </p>
+                                    {equipment.maintenanceNotes && (
+                                      <p className="text-xs text-red-500">
+                                        <Wrench className="inline-block mr-1 h-3 w-3" />
+                                        Đang bảo trì: {equipment.maintenanceLocation}
+                                      </p>
+                                    )}
                                   </div>
-                                  <Button 
-                                    type="button" 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => addEquipment(equipment)}
-                                  >
-                                    <PlusCircle className="h-4 w-4 mr-1" /> Thêm
-                                  </Button>
+                                  <div className="flex gap-2">
+                                    <Button 
+                                      type="button" 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => handleMaintenanceDialog(equipment)}
+                                    >
+                                      <Wrench className="h-4 w-4 mr-1" /> Bảo trì
+                                    </Button>
+                                    <Button 
+                                      type="button" 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => addEquipment(equipment)}
+                                      disabled={!equipment.isAvailable}
+                                    >
+                                      <PlusCircle className="h-4 w-4 mr-1" /> Thêm
+                                    </Button>
+                                  </div>
                                 </div>
                               ))}
                           </TabsContent>
@@ -808,59 +1071,88 @@ const Rentals = () => {
                                 <TableHead className="text-center">Số lượng</TableHead>
                                 <TableHead className="text-center">Số ngày</TableHead>
                                 <TableHead className="text-right">Đơn giá/ngày</TableHead>
+                                <TableHead className="text-center">Giảm giá (%)</TableHead>
                                 <TableHead className="text-right">Thành tiền</TableHead>
                                 <TableHead></TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {selectedItems.map(item => (
-                                <TableRow key={item.id}>
-                                  <TableCell>{item.equipmentName}</TableCell>
-                                  <TableCell className="text-center">
-                                    <div className="flex items-center justify-center">
+                              {selectedItems.map(item => {
+                                const equipment = sampleEquipments.find(eq => eq.id === item.equipmentId);
+                                const isDiscountable = equipment && (equipment.category === "1" || equipment.category === "2");
+                                
+                                return (
+                                  <TableRow key={item.id}>
+                                    <TableCell>{item.equipmentName}</TableCell>
+                                    <TableCell className="text-center">
+                                      <div className="flex items-center justify-center">
+                                        <Button 
+                                          type="button" 
+                                          variant="outline" 
+                                          size="icon" 
+                                          className="h-6 w-6"
+                                          onClick={() => updateEquipmentQuantity(item.id, item.quantity - 1)}
+                                        >
+                                          <MinusCircle className="h-3 w-3" />
+                                        </Button>
+                                        <span className="mx-2 w-8 text-center">{item.quantity}</span>
+                                        <Button 
+                                          type="button" 
+                                          variant="outline" 
+                                          size="icon" 
+                                          className="h-6 w-6"
+                                          onClick={() => updateEquipmentQuantity(item.id, item.quantity + 1)}
+                                        >
+                                          <PlusCircle className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-center">{item.days}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(item.dailyRate)}</TableCell>
+                                    <TableCell className="text-center">
+                                      {isDiscountable ? (
+                                        <Input 
+                                          type="number" 
+                                          min="0" 
+                                          max="100" 
+                                          className="w-16 h-7 text-center mx-auto" 
+                                          value={item.discount || 0}
+                                          onChange={(e) => updateEquipmentDiscount(item.id, Number(e.target.value))}
+                                        />
+                                      ) : (
+                                        <span className="text-muted-foreground">N/A</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">{formatCurrency(item.totalAmount)}</TableCell>
+                                    <TableCell>
                                       <Button 
                                         type="button" 
-                                        variant="outline" 
+                                        variant="ghost" 
                                         size="icon" 
                                         className="h-6 w-6"
-                                        onClick={() => updateEquipmentQuantity(item.id, item.quantity - 1)}
+                                        onClick={() => removeEquipment(item.id)}
                                       >
-                                        <MinusCircle className="h-3 w-3" />
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
-                                      <span className="mx-2 w-8 text-center">{item.quantity}</span>
-                                      <Button 
-                                        type="button" 
-                                        variant="outline" 
-                                        size="icon" 
-                                        className="h-6 w-6"
-                                        onClick={() => updateEquipmentQuantity(item.id, item.quantity + 1)}
-                                      >
-                                        <PlusCircle className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-center">{item.days}</TableCell>
-                                  <TableCell className="text-right">{formatCurrency(item.dailyRate)}</TableCell>
-                                  <TableCell className="text-right font-medium">{formatCurrency(item.totalAmount)}</TableCell>
-                                  <TableCell>
-                                    <Button 
-                                      type="button" 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      className="h-6 w-6"
-                                      onClick={() => removeEquipment(item.id)}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                              <TableRow>
+                                <TableCell colSpan={4} className="text-right font-bold">
+                                  Tổng khấu hao (60% giá thiết bị):
+                                </TableCell>
+                                <TableCell colSpan={2} className="text-right font-bold">
+                                  {formatCurrency(calculateTotalDepreciation(selectedItems))}
+                                </TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
                               <TableRow>
                                 <TableCell colSpan={4} className="text-right font-bold">
                                   Tổng cộng:
                                 </TableCell>
-                                <TableCell className="text-right font-bold">
-                                  {formatCurrency(calculateTotal(selectedItems))}
+                                <TableCell colSpan={2} className="text-right font-bold">
+                                  {formatCurrency(calculateDiscountedTotal(selectedItems))}
                                 </TableCell>
                                 <TableCell></TableCell>
                               </TableRow>
@@ -868,7 +1160,7 @@ const Rentals = () => {
                                 <TableCell colSpan={4} className="text-right font-bold">
                                   Đặt cọc:
                                 </TableCell>
-                                <TableCell className="text-right font-bold">
+                                <TableCell colSpan={2} className="text-right font-bold">
                                   {form.watch("deposit") ? formatCurrency(form.watch("deposit")) : formatCurrency(0)}
                                 </TableCell>
                                 <TableCell></TableCell>
@@ -877,8 +1169,8 @@ const Rentals = () => {
                                 <TableCell colSpan={4} className="text-right font-bold">
                                   Còn lại:
                                 </TableCell>
-                                <TableCell className="text-right font-bold">
-                                  {formatCurrency(calculateTotal(selectedItems) - (form.watch("deposit") || 0))}
+                                <TableCell colSpan={2} className="text-right font-bold">
+                                  {formatCurrency(calculateDiscountedTotal(selectedItems) - (form.watch("deposit") || 0))}
                                 </TableCell>
                                 <TableCell></TableCell>
                               </TableRow>
@@ -934,6 +1226,7 @@ const Rentals = () => {
                 <TableHead className="text-right">Đặt cọc</TableHead>
                 <TableHead className="text-right">Còn lại</TableHead>
                 <TableHead>Trạng thái</TableHead>
+                <TableHead>Bàn giao</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
@@ -962,6 +1255,23 @@ const Rentals = () => {
                       {rental.status}
                     </span>
                   </TableCell>
+                  <TableCell>
+                    {rental.handoverCompleted ? (
+                      <span className="inline-flex items-center text-green-600">
+                        <CheckSquare className="h-4 w-4 mr-1" />
+                        Đã bàn giao
+                      </span>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleCreateHandover(rental)}
+                      >
+                        <ClipboardCheck className="h-4 w-4 mr-1" />
+                        Bàn giao
+                      </Button>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -977,6 +1287,10 @@ const Rentals = () => {
                         <DropdownMenuItem onClick={() => handleViewQuote(rental)}>
                           <FileText className="mr-2 h-4 w-4" />
                           Xem báo giá
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleCreateHandover(rental)} disabled={rental.handoverCompleted}>
+                          <ClipboardCheck className="mr-2 h-4 w-4" />
+                          Tạo biên bản bàn giao
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleStatusChange(rental.id, "Đặt trước")}>
@@ -1014,6 +1328,7 @@ const Rentals = () => {
         </CardFooter>
       </Card>
 
+      {/* Dialog chỉnh sửa đơn hàng */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[80vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1083,6 +1398,7 @@ const Rentals = () => {
                                 selected={field.value}
                                 onSelect={field.onChange}
                                 initialFocus
+                                className={cn("p-3 pointer-events-auto")}
                               />
                             </PopoverContent>
                           </Popover>
@@ -1122,6 +1438,7 @@ const Rentals = () => {
                                 selected={field.value}
                                 onSelect={field.onChange}
                                 initialFocus
+                                className={cn("p-3 pointer-events-auto")}
                               />
                             </PopoverContent>
                           </Popover>
@@ -1153,28 +1470,49 @@ const Rentals = () => {
                     
                     <FormField
                       control={editForm.control}
-                      name="status"
+                      name="discount"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Trạng thái</FormLabel>
+                          <FormLabel>Giảm giá (%)</FormLabel>
                           <FormControl>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Chọn trạng thái" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Đặt trước">Đặt trước</SelectItem>
-                                <SelectItem value="Đang thuê">Đang thuê</SelectItem>
-                                <SelectItem value="Hoàn thành">Hoàn thành</SelectItem>
-                                <SelectItem value="Đã hủy">Đã hủy</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              placeholder="0"
+                              {...field}
+                              onChange={e => field.onChange(Number(e.target.value))}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Trạng thái</FormLabel>
+                        <FormControl>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Chọn trạng thái" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Đặt trước">Đặt trước</SelectItem>
+                              <SelectItem value="Đang thuê">Đang thuê</SelectItem>
+                              <SelectItem value="Hoàn thành">Hoàn thành</SelectItem>
+                              <SelectItem value="Đã hủy">Đã hủy</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
                   <FormField
                     control={editForm.control}
@@ -1210,8 +1548,8 @@ const Rentals = () => {
                       
                       {equipmentCategories.map(category => (
                         <TabsContent key={category.id} value={category.id} className="mt-4 space-y-2">
-                          {sampleEquipments
-                            .filter(eq => eq.category === category.id)
+                          {equipments
+                            .filter(eq => eq.category === category.id && eq.isAvailable)
                             .map(equipment => (
                               <div key={equipment.id} className="flex justify-between items-center border-b pb-2">
                                 <div>
@@ -1219,12 +1557,19 @@ const Rentals = () => {
                                   <p className="text-sm text-muted-foreground">
                                     {formatCurrency(equipment.dailyRate)}/ngày
                                   </p>
+                                  {equipment.maintenanceNotes && (
+                                    <p className="text-xs text-red-500">
+                                      <Wrench className="inline-block mr-1 h-3 w-3" />
+                                      Đang bảo trì: {equipment.maintenanceLocation}
+                                    </p>
+                                  )}
                                 </div>
                                 <Button 
                                   type="button" 
                                   variant="outline" 
                                   size="sm"
                                   onClick={() => addEquipment(equipment)}
+                                  disabled={!equipment.isAvailable}
                                 >
                                   <PlusCircle className="h-4 w-4 mr-1" /> Thêm
                                 </Button>
@@ -1249,59 +1594,88 @@ const Rentals = () => {
                               <TableHead className="text-center">Số lượng</TableHead>
                               <TableHead className="text-center">Số ngày</TableHead>
                               <TableHead className="text-right">Đơn giá/ngày</TableHead>
+                              <TableHead className="text-center">Giảm giá (%)</TableHead>
                               <TableHead className="text-right">Thành tiền</TableHead>
                               <TableHead></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {selectedItems.map(item => (
-                              <TableRow key={item.id}>
-                                <TableCell>{item.equipmentName}</TableCell>
-                                <TableCell className="text-center">
-                                  <div className="flex items-center justify-center">
+                            {selectedItems.map(item => {
+                              const equipment = sampleEquipments.find(eq => eq.id === item.equipmentId);
+                              const isDiscountable = equipment && (equipment.category === "1" || equipment.category === "2");
+                              
+                              return (
+                                <TableRow key={item.id}>
+                                  <TableCell>{item.equipmentName}</TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="flex items-center justify-center">
+                                      <Button 
+                                        type="button" 
+                                        variant="outline" 
+                                        size="icon" 
+                                        className="h-6 w-6"
+                                        onClick={() => updateEquipmentQuantity(item.id, item.quantity - 1)}
+                                      >
+                                        <MinusCircle className="h-3 w-3" />
+                                      </Button>
+                                      <span className="mx-2 w-8 text-center">{item.quantity}</span>
+                                      <Button 
+                                        type="button" 
+                                        variant="outline" 
+                                        size="icon" 
+                                        className="h-6 w-6"
+                                        onClick={() => updateEquipmentQuantity(item.id, item.quantity + 1)}
+                                      >
+                                        <PlusCircle className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-center">{item.days}</TableCell>
+                                  <TableCell className="text-right">{formatCurrency(item.dailyRate)}</TableCell>
+                                  <TableCell className="text-center">
+                                    {isDiscountable ? (
+                                      <Input 
+                                        type="number" 
+                                        min="0" 
+                                        max="100" 
+                                        className="w-16 h-7 text-center mx-auto" 
+                                        value={item.discount || 0}
+                                        onChange={(e) => updateEquipmentDiscount(item.id, Number(e.target.value))}
+                                      />
+                                    ) : (
+                                      <span className="text-muted-foreground">N/A</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right font-medium">{formatCurrency(item.totalAmount)}</TableCell>
+                                  <TableCell>
                                     <Button 
                                       type="button" 
-                                      variant="outline" 
+                                      variant="ghost" 
                                       size="icon" 
                                       className="h-6 w-6"
-                                      onClick={() => updateEquipmentQuantity(item.id, item.quantity - 1)}
+                                      onClick={() => removeEquipment(item.id)}
                                     >
-                                      <MinusCircle className="h-3 w-3" />
+                                      <Trash2 className="h-3 w-3" />
                                     </Button>
-                                    <span className="mx-2 w-8 text-center">{item.quantity}</span>
-                                    <Button 
-                                      type="button" 
-                                      variant="outline" 
-                                      size="icon" 
-                                      className="h-6 w-6"
-                                      onClick={() => updateEquipmentQuantity(item.id, item.quantity + 1)}
-                                    >
-                                      <PlusCircle className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-center">{item.days}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(item.dailyRate)}</TableCell>
-                                <TableCell className="text-right font-medium">{formatCurrency(item.totalAmount)}</TableCell>
-                                <TableCell>
-                                  <Button 
-                                    type="button" 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-6 w-6"
-                                    onClick={() => removeEquipment(item.id)}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-right font-bold">
+                                Tổng khấu hao (60% giá thiết bị):
+                              </TableCell>
+                              <TableCell colSpan={2} className="text-right font-bold">
+                                {formatCurrency(calculateTotalDepreciation(selectedItems))}
+                              </TableCell>
+                              <TableCell></TableCell>
+                            </TableRow>
                             <TableRow>
                               <TableCell colSpan={4} className="text-right font-bold">
                                 Tổng cộng:
                               </TableCell>
-                              <TableCell className="text-right font-bold">
-                                {formatCurrency(calculateTotal(selectedItems))}
+                              <TableCell colSpan={2} className="text-right font-bold">
+                                {formatCurrency(calculateDiscountedTotal(selectedItems))}
                               </TableCell>
                               <TableCell></TableCell>
                             </TableRow>
@@ -1309,7 +1683,7 @@ const Rentals = () => {
                               <TableCell colSpan={4} className="text-right font-bold">
                                 Đặt cọc:
                               </TableCell>
-                              <TableCell className="text-right font-bold">
+                              <TableCell colSpan={2} className="text-right font-bold">
                                 {editForm.watch("deposit") ? formatCurrency(editForm.watch("deposit")) : formatCurrency(0)}
                               </TableCell>
                               <TableCell></TableCell>
@@ -1318,8 +1692,8 @@ const Rentals = () => {
                               <TableCell colSpan={4} className="text-right font-bold">
                                 Còn lại:
                               </TableCell>
-                              <TableCell className="text-right font-bold">
-                                {formatCurrency(calculateTotal(selectedItems) - (editForm.watch("deposit") || 0))}
+                              <TableCell colSpan={2} className="text-right font-bold">
+                                {formatCurrency(calculateDiscountedTotal(selectedItems) - (editForm.watch("deposit") || 0))}
                               </TableCell>
                               <TableCell></TableCell>
                             </TableRow>
@@ -1338,6 +1712,188 @@ const Rentals = () => {
                   setSelectedRental(null);
                 }} type="button">Hủy</Button>
                 <Button type="submit">Lưu thay đổi</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog biên bản bàn giao */}
+      <Dialog open={isHandoverDialogOpen} onOpenChange={setIsHandoverDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Biên bản bàn giao thiết bị</DialogTitle>
+            <DialogDescription>
+              Tạo biên bản bàn giao thiết bị cho đơn hàng #{selectedRental?.id}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...handoverForm}>
+            <form onSubmit={handoverForm.handleSubmit(onHandoverSubmit)} className="space-y-4">
+              {selectedRental && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-medium">Thông tin khách hàng</h4>
+                      <p>{selectedRental.customerName}</p>
+                      <p className="text-sm text-muted-foreground">{selectedRental.contact}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium">Thời gian thuê</h4>
+                      <p>Từ: {formatDate(selectedRental.startDate)}</p>
+                      <p>Đến: {formatDate(selectedRental.endDate)}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-2">Danh sách thiết bị</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Thiết bị</TableHead>
+                          <TableHead className="text-center">Số lượng</TableHead>
+                          <TableHead className="text-right">Đơn giá/ngày</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedRental.items.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>{item.equipmentName}</TableCell>
+                            <TableCell className="text-center">{item.quantity}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(item.dailyRate)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  <FormField
+                    control={handoverForm.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ghi chú bàn giao</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Nhập ghi chú về tình trạng thiết bị khi bàn giao..." 
+                            className="resize-none" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={handoverForm.control}
+                      name="signedByCustomer"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                              className="form-checkbox h-5 w-5"
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>Khách hàng đã ký</FormLabel>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={handoverForm.control}
+                      name="signedByStaff"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                              className="form-checkbox h-5 w-5"
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>Nhân viên đã ký</FormLabel>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => {
+                  setIsHandoverDialogOpen(false);
+                  setSelectedRental(null);
+                }} type="button">Hủy</Button>
+                <Button type="submit">Xác nhận bàn giao</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog maintenance */}
+      <Dialog open={isMaintenanceDialogOpen} onOpenChange={setIsMaintenanceDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Thông tin bảo trì thiết bị</DialogTitle>
+            <DialogDescription>
+              Cập nhật thông tin bảo trì cho thiết bị {selectedEquipment?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...maintenanceForm}>
+            <form onSubmit={maintenanceForm.handleSubmit(onMaintenanceSubmit)} className="space-y-4">
+              <FormField
+                control={maintenanceForm.control}
+                name="maintenanceNotes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ghi chú bảo trì</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Mô tả tình trạng thiết bị, lý do bảo trì..." 
+                        className="resize-none" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={maintenanceForm.control}
+                name="maintenanceLocation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Địa điểm bảo trì</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Nhập địa điểm thiết bị đang bảo trì" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => {
+                  setIsMaintenanceDialogOpen(false);
+                  setSelectedEquipment(null);
+                }} type="button">Hủy</Button>
+                <Button type="submit">Lưu thông tin</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -1395,7 +1951,8 @@ const Rentals = () => {
                       <TableHead>NỘI DUNG</TableHead>
                       <TableHead className="text-center w-[100px]">SỐ LƯỢNG</TableHead>
                       <TableHead className="text-center w-[100px]">SỐ NGÀY</TableHead>
-                      <TableHead className="text-right w-[150px]">ĐƠN GIÁ / NGÀY (VNĐ)</TableHead>
+                      <TableHead className="text-right w-[120px]">ĐƠN GIÁ / NGÀY (VNĐ)</TableHead>
+                      <TableHead className="text-center w-[80px]">GIẢM GIÁ (%)</TableHead>
                       <TableHead className="text-right w-[150px]">THÀNH TIỀN (VNĐ)</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1411,7 +1968,7 @@ const Rentals = () => {
                       return (
                         <Fragment key={category.id}>
                           <TableRow className="bg-amber-50">
-                            <TableCell colSpan={6} className="font-bold text-center py-2">
+                            <TableCell colSpan={7} className="font-bold text-center py-2">
                               {category.name}
                             </TableCell>
                           </TableRow>
@@ -1423,6 +1980,9 @@ const Rentals = () => {
                               <TableCell className="text-center">{item.quantity}</TableCell>
                               <TableCell className="text-center">{item.days}</TableCell>
                               <TableCell className="text-right">{formatCurrency(item.dailyRate)}</TableCell>
+                              <TableCell className="text-center">
+                                {item.discount ? `${item.discount}%` : "-"}
+                              </TableCell>
                               <TableCell className="text-right">{formatCurrency(item.totalAmount)}</TableCell>
                             </TableRow>
                           ))}
@@ -1431,7 +1991,7 @@ const Rentals = () => {
                     })}
                     
                     <TableRow className="bg-muted/20">
-                      <TableCell colSpan={5} className="font-bold text-right">
+                      <TableCell colSpan={6} className="font-bold text-right">
                         TỔNG CHI PHÍ THIẾT BỊ
                       </TableCell>
                       <TableCell className="text-right font-bold">
@@ -1440,16 +2000,16 @@ const Rentals = () => {
                     </TableRow>
                     
                     <TableRow>
-                      <TableCell colSpan={5} className="font-bold text-right">
+                      <TableCell colSpan={6} className="font-bold text-right">
                         GIẢM GIÁ
                       </TableCell>
                       <TableCell className="text-right">
-                        0%
+                        {selectedRental.discount ? `${selectedRental.discount}%` : "0%"}
                       </TableCell>
                     </TableRow>
                     
                     <TableRow className="bg-amber-50">
-                      <TableCell colSpan={5} className="font-bold text-right">
+                      <TableCell colSpan={6} className="font-bold text-right">
                         TỔNG CHI PHÍ CẦN THANH TOÁN
                       </TableCell>
                       <TableCell className="text-right font-bold">
@@ -1499,3 +2059,4 @@ const Rentals = () => {
 };
 
 export default Rentals;
+
