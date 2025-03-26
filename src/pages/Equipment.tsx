@@ -35,7 +35,10 @@ import {
   Wrench, 
   TrendingDown,
   Archive,
-  Tag 
+  Tag,
+  Camera,
+  Lightbulb,
+  Users 
 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -52,6 +55,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Định nghĩa interfaces
 interface Equipment {
@@ -65,6 +69,8 @@ interface Equipment {
   purchasePrice?: number;
   purchaseDate?: string;
   rentalCount: number;
+  equipmentType: 'camera' | 'lighting' | 'personnel' | 'other';
+  maintenanceLocation?: string;
 }
 
 interface MaintenanceRecord {
@@ -75,6 +81,7 @@ interface MaintenanceRecord {
   description: string;
   cost: number;
   resolved: boolean;
+  location?: string;
 }
 
 // Dữ liệu mẫu cho thiết bị
@@ -89,7 +96,8 @@ const sampleEquipment: Equipment[] = [
     condition: "Tốt",
     purchasePrice: 150000000,
     purchaseDate: "2022-05-15",
-    rentalCount: 25
+    rentalCount: 25,
+    equipmentType: 'camera'
   },
   {
     id: 2,
@@ -101,7 +109,8 @@ const sampleEquipment: Equipment[] = [
     condition: "Tốt",
     purchasePrice: 25000000,
     purchaseDate: "2022-08-20",
-    rentalCount: 18
+    rentalCount: 18,
+    equipmentType: 'lighting'
   },
   {
     id: 3,
@@ -113,7 +122,8 @@ const sampleEquipment: Equipment[] = [
     condition: "Tốt",
     purchasePrice: 15000000,
     purchaseDate: "2022-03-10",
-    rentalCount: 30
+    rentalCount: 30,
+    equipmentType: 'camera'
   },
   {
     id: 4,
@@ -125,7 +135,8 @@ const sampleEquipment: Equipment[] = [
     condition: "Tốt",
     purchasePrice: 45000000,
     purchaseDate: "2022-07-05",
-    rentalCount: 15
+    rentalCount: 15,
+    equipmentType: 'camera'
   },
   {
     id: 5,
@@ -137,7 +148,43 @@ const sampleEquipment: Equipment[] = [
     condition: "Cần sửa chữa",
     purchasePrice: 8000000,
     purchaseDate: "2022-01-30",
-    rentalCount: 22
+    rentalCount: 22,
+    equipmentType: 'camera'
+  },
+  {
+    id: 6,
+    name: "Kỹ thuật viên máy quay",
+    category: "Nhân sự",
+    serialNumber: "STAFF001",
+    dailyRate: 1000000,
+    status: "Sẵn sàng",
+    condition: "N/A",
+    rentalCount: 40,
+    equipmentType: 'personnel'
+  },
+  {
+    id: 7,
+    name: "Kỹ thuật viên ánh sáng",
+    category: "Nhân sự",
+    serialNumber: "STAFF002",
+    dailyRate: 800000,
+    status: "Sẵn sàng",
+    condition: "N/A",
+    rentalCount: 35,
+    equipmentType: 'personnel'
+  },
+  {
+    id: 8,
+    name: "Xe vận chuyển thiết bị",
+    category: "Di chuyển",
+    serialNumber: "VH001",
+    dailyRate: 1500000,
+    status: "Sẵn sàng",
+    condition: "Tốt",
+    purchasePrice: 500000000,
+    purchaseDate: "2021-10-15",
+    rentalCount: 60,
+    equipmentType: 'personnel'
   }
 ];
 
@@ -150,7 +197,8 @@ const sampleMaintenanceRecords: MaintenanceRecord[] = [
     date: "2023-08-15",
     description: "Mic không hoạt động, cần thay cáp kết nối",
     cost: 500000,
-    resolved: false
+    resolved: false,
+    location: "Xưởng sửa chữa Minh Phát"
   },
   {
     id: 2,
@@ -159,7 +207,8 @@ const sampleMaintenanceRecords: MaintenanceRecord[] = [
     date: "2023-06-20",
     description: "Bảo trì định kỳ, vệ sinh cảm biến",
     cost: 1200000,
-    resolved: true
+    resolved: true,
+    location: "Trung tâm bảo hành Canon"
   },
   {
     id: 3,
@@ -168,15 +217,22 @@ const sampleMaintenanceRecords: MaintenanceRecord[] = [
     date: "2023-07-05",
     description: "Cân chỉnh lại motor, thay pin",
     cost: 800000,
-    resolved: true
+    resolved: true,
+    location: "Trung tâm bảo hành DJI"
   }
 ];
 
 // Hàm tính khấu hao
 const calculateDepreciation = (equipment: Equipment) => {
-  if (!equipment.purchasePrice || !equipment.purchaseDate) return 0;
+  if (!equipment.purchasePrice) return 0;
   
-  const purchaseDate = new Date(equipment.purchaseDate);
+  // Khấu hao máy là 60% giá cho thuê máy trên 1 ngày
+  if (equipment.equipmentType === 'camera' || equipment.equipmentType === 'lighting') {
+    return equipment.dailyRate * 0.6;
+  }
+  
+  // Cách tính khấu hao cũ dựa trên thời gian
+  const purchaseDate = new Date(equipment.purchaseDate || new Date());
   const currentDate = new Date();
   const monthsDiff = (currentDate.getFullYear() - purchaseDate.getFullYear()) * 12 + 
                      (currentDate.getMonth() - purchaseDate.getMonth());
@@ -202,14 +258,26 @@ const Equipment = () => {
   const [isEquipmentDialogOpen, setIsEquipmentDialogOpen] = useState(false);
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [equipmentTypeFilter, setEquipmentTypeFilter] = useState<string>("all");
   const { toast } = useToast();
 
-  // Lọc thiết bị theo từ khóa tìm kiếm
-  const filteredEquipment = equipment.filter(item => 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Lọc thiết bị theo từ khóa tìm kiếm và loại thiết bị
+  const filteredEquipment = equipment.filter(item => {
+    // Lọc theo từ khóa tìm kiếm
+    const matchesSearch = 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Lọc theo loại thiết bị
+    const matchesType = 
+      equipmentTypeFilter === "all" || 
+      (equipmentTypeFilter === "camera" && item.equipmentType === "camera") ||
+      (equipmentTypeFilter === "lighting" && item.equipmentType === "lighting") ||
+      (equipmentTypeFilter === "personnel" && item.equipmentType === "personnel");
+    
+    return matchesSearch && matchesType;
+  });
 
   // Lọc thiết bị đang bảo trì
   const maintenanceEquipment = equipment.filter(item => item.status === "Bảo trì");
@@ -217,7 +285,8 @@ const Equipment = () => {
   // Lọc lịch sử bảo trì theo từ khóa tìm kiếm
   const filteredMaintenanceRecords = maintenanceRecords.filter(record => 
     record.equipmentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.description.toLowerCase().includes(searchTerm.toLowerCase())
+    record.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (record.location && record.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Hàm thêm thiết bị mới
@@ -236,7 +305,8 @@ const Equipment = () => {
       condition: newEquipment.condition || "Tốt",
       purchasePrice: newEquipment.purchasePrice,
       purchaseDate: newEquipment.purchaseDate,
-      rentalCount: 0
+      rentalCount: 0,
+      equipmentType: newEquipment.equipmentType || 'other'
     }]);
   };
 
@@ -261,7 +331,7 @@ const Equipment = () => {
       setEquipment(
         equipment.map(eq => 
           eq.id === record.equipmentId 
-            ? { ...eq, status: "Bảo trì", condition: "Cần sửa chữa" } 
+            ? { ...eq, status: "Bảo trì", condition: "Cần sửa chữa", maintenanceLocation: record.location } 
             : eq
         )
       );
@@ -281,7 +351,7 @@ const Equipment = () => {
       setEquipment(
         equipment.map(eq => 
           eq.id === record.equipmentId 
-            ? { ...eq, status: "Sẵn sàng", condition: "Tốt" } 
+            ? { ...eq, status: "Sẵn sàng", condition: "Tốt", maintenanceLocation: undefined } 
             : eq
         )
       );
@@ -308,6 +378,34 @@ const Equipment = () => {
     if (equipToMaintain) {
       setSelectedEquipment(equipToMaintain);
       setIsMaintenanceDialogOpen(true);
+    }
+  };
+
+  // Hàm render icon dựa vào loại thiết bị
+  const renderEquipmentTypeIcon = (type: string) => {
+    switch (type) {
+      case 'camera':
+        return <Camera className="h-4 w-4 mr-2" />;
+      case 'lighting':
+        return <Lightbulb className="h-4 w-4 mr-2" />;
+      case 'personnel':
+        return <Users className="h-4 w-4 mr-2" />;
+      default:
+        return <Tag className="h-4 w-4 mr-2" />;
+    }
+  };
+
+  // Function to get human-readable equipment type name
+  const getEquipmentTypeName = (type: string): string => {
+    switch (type) {
+      case 'camera':
+        return 'Thiết bị máy quay';
+      case 'lighting':
+        return 'Thiết bị ánh sáng';
+      case 'personnel':
+        return 'Nhân sự - Di chuyển - Phát sinh';
+      default:
+        return 'Khác';
     }
   };
 
@@ -355,6 +453,7 @@ const Equipment = () => {
                   date: formData.get('date') as string,
                   description: formData.get('description') as string,
                   cost: Number(formData.get('cost')),
+                  location: formData.get('location') as string,
                   resolved: false
                 });
                 
@@ -428,6 +527,19 @@ const Equipment = () => {
                   </div>
                   
                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="location" className="text-right">
+                      Vị trí bảo trì
+                    </Label>
+                    <Input 
+                      id="location" 
+                      name="location" 
+                      className="col-span-3" 
+                      required
+                      placeholder="Địa điểm đang sửa chữa thiết bị"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="cost" className="text-right">
                       Chi phí dự kiến
                     </Label>
@@ -480,7 +592,8 @@ const Equipment = () => {
                   dailyRate: Number(formData.get('dailyRate')),
                   condition: formData.get('condition') as string,
                   purchasePrice: Number(formData.get('purchasePrice')) || undefined,
-                  purchaseDate: (formData.get('purchaseDate') as string) || undefined
+                  purchaseDate: (formData.get('purchaseDate') as string) || undefined,
+                  equipmentType: formData.get('equipmentType') as 'camera' | 'lighting' | 'personnel' | 'other'
                 };
                 
                 if (selectedEquipment) {
@@ -518,6 +631,23 @@ const Equipment = () => {
                       required 
                       defaultValue={selectedEquipment?.name || ""}
                     />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="equipmentType" className="text-right">
+                      Phân loại
+                    </Label>
+                    <select 
+                      id="equipmentType" 
+                      name="equipmentType" 
+                      className="col-span-3 w-full border border-input bg-background px-3 py-2 rounded-md"
+                      required 
+                      defaultValue={selectedEquipment?.equipmentType || "camera"}
+                    >
+                      <option value="camera">Thiết bị máy quay</option>
+                      <option value="lighting">Thiết bị ánh sáng</option>
+                      <option value="personnel">Nhân sự - Di chuyển - Phát sinh</option>
+                      <option value="other">Khác</option>
+                    </select>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="category" className="text-right">
@@ -632,95 +762,334 @@ const Equipment = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="mb-4 flex items-center gap-2">
-                <Search className="w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Tìm kiếm thiết bị..."
-                  className="max-w-sm"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+              <div className="mb-4 flex items-center gap-2 justify-between">
+                <div className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Tìm kiếm thiết bị..."
+                    className="max-w-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                
+                <Select value={equipmentTypeFilter} onValueChange={setEquipmentTypeFilter}>
+                  <SelectTrigger className="w-[240px]">
+                    <SelectValue placeholder="Lọc theo loại thiết bị" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả thiết bị</SelectItem>
+                    <SelectItem value="camera">Thiết bị máy quay</SelectItem>
+                    <SelectItem value="lighting">Thiết bị ánh sáng</SelectItem>
+                    <SelectItem value="personnel">Nhân sự - Di chuyển - Phát sinh</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tên thiết bị</TableHead>
-                    <TableHead>Danh mục</TableHead>
-                    <TableHead>Số serial</TableHead>
-                    <TableHead>Giá thuê/ngày</TableHead>
-                    <TableHead>Trạng thái</TableHead>
-                    <TableHead>Tình trạng</TableHead>
-                    <TableHead className="text-right">Thao tác</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEquipment.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell>{item.serialNumber}</TableCell>
-                      <TableCell>{item.dailyRate.toLocaleString()}đ</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                          item.status === "Sẵn sàng" 
-                            ? "bg-green-50 text-green-700 ring-green-600/20" 
-                            : item.status === "Đang thuê"
-                              ? "bg-yellow-50 text-yellow-700 ring-yellow-600/20"
-                              : "bg-red-50 text-red-700 ring-red-600/20"
-                        }`}>
-                          {item.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>{item.condition}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <FileEdit className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditEquipment(item.id)}>
-                              Chỉnh sửa
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                              // Toggle status
-                              const newStatus = item.status === "Sẵn sàng" ? "Đang thuê" : "Sẵn sàng";
-                              setEquipment(
-                                equipment.map(eq => 
-                                  eq.id === item.id ? {...eq, status: newStatus} : eq
-                                )
-                              );
-                              toast({
-                                title: "Đã cập nhật trạng thái",
-                                description: `Thiết bị ${item.name} đã được chuyển sang ${newStatus}`,
-                              });
-                            }}>
-                              {item.status === "Sẵn sàng" ? "Đánh dấu đang thuê" : "Đánh dấu sẵn sàng"}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleMarkForMaintenance(item.id)}>
-                              <Wrench className="h-4 w-4 mr-2" />
-                              Đánh dấu cần bảo trì
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => {
-                              setEquipment(equipment.filter(eq => eq.id !== item.id));
-                              toast({
-                                title: "Đã xóa thiết bị",
-                                description: `Thiết bị ${item.name} đã được xóa khỏi danh sách`,
-                                variant: "destructive"
-                              });
-                            }} className="text-destructive">
-                              Xóa thiết bị
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              
+              {/* Camera Equipment */}
+              {(equipmentTypeFilter === "all" || equipmentTypeFilter === "camera") && 
+                filteredEquipment.some(item => item.equipmentType === "camera") && (
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center">
+                    <Camera className="mr-2 h-5 w-5" />
+                    Thiết bị máy quay
+                  </h3>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tên thiết bị</TableHead>
+                          <TableHead>Danh mục</TableHead>
+                          <TableHead>Số serial</TableHead>
+                          <TableHead>Giá thuê/ngày</TableHead>
+                          <TableHead>Trạng thái</TableHead>
+                          <TableHead>Tình trạng</TableHead>
+                          <TableHead className="text-right">Thao tác</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredEquipment
+                          .filter(item => item.equipmentType === "camera")
+                          .map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell>{item.category}</TableCell>
+                            <TableCell>{item.serialNumber}</TableCell>
+                            <TableCell>{item.dailyRate.toLocaleString()}đ</TableCell>
+                            <TableCell>
+                              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${
+                                item.status === "Sẵn sàng" 
+                                  ? "bg-green-50 text-green-700 ring-green-600/20" 
+                                  : item.status === "Đang thuê"
+                                    ? "bg-yellow-50 text-yellow-700 ring-yellow-600/20"
+                                    : "bg-red-50 text-red-700 ring-red-600/20"
+                              }`}>
+                                {item.status}
+                                {item.status === "Bảo trì" && item.maintenanceLocation && 
+                                  ` - ${item.maintenanceLocation}`}
+                              </span>
+                            </TableCell>
+                            <TableCell>{item.condition}</TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <FileEdit className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEditEquipment(item.id)}>
+                                    Chỉnh sửa
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    // Toggle status
+                                    const newStatus = item.status === "Sẵn sàng" ? "Đang thuê" : "Sẵn sàng";
+                                    setEquipment(
+                                      equipment.map(eq => 
+                                        eq.id === item.id ? {...eq, status: newStatus} : eq
+                                      )
+                                    );
+                                    toast({
+                                      title: "Đã cập nhật trạng thái",
+                                      description: `Thiết bị ${item.name} đã được chuyển sang ${newStatus}`,
+                                    });
+                                  }}>
+                                    {item.status === "Sẵn sàng" ? "Đánh dấu đang thuê" : "Đánh dấu sẵn sàng"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleMarkForMaintenance(item.id)}>
+                                    <Wrench className="h-4 w-4 mr-2" />
+                                    Đánh dấu cần bảo trì
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => {
+                                    setEquipment(equipment.filter(eq => eq.id !== item.id));
+                                    toast({
+                                      title: "Đã xóa thiết bị",
+                                      description: `Thiết bị ${item.name} đã được xóa khỏi danh sách`,
+                                      variant: "destructive"
+                                    });
+                                  }} className="text-destructive">
+                                    Xóa thiết bị
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredEquipment.filter(item => item.equipmentType === "camera").length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
+                              Không có thiết bị máy quay nào
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+              
+              {/* Lighting Equipment */}
+              {(equipmentTypeFilter === "all" || equipmentTypeFilter === "lighting") && 
+                filteredEquipment.some(item => item.equipmentType === "lighting") && (
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center">
+                    <Lightbulb className="mr-2 h-5 w-5" />
+                    Thiết bị ánh sáng
+                  </h3>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tên thiết bị</TableHead>
+                          <TableHead>Danh mục</TableHead>
+                          <TableHead>Số serial</TableHead>
+                          <TableHead>Giá thuê/ngày</TableHead>
+                          <TableHead>Trạng thái</TableHead>
+                          <TableHead>Tình trạng</TableHead>
+                          <TableHead className="text-right">Thao tác</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredEquipment
+                          .filter(item => item.equipmentType === "lighting")
+                          .map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell>{item.category}</TableCell>
+                            <TableCell>{item.serialNumber}</TableCell>
+                            <TableCell>{item.dailyRate.toLocaleString()}đ</TableCell>
+                            <TableCell>
+                              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${
+                                item.status === "Sẵn sàng" 
+                                  ? "bg-green-50 text-green-700 ring-green-600/20" 
+                                  : item.status === "Đang thuê"
+                                    ? "bg-yellow-50 text-yellow-700 ring-yellow-600/20"
+                                    : "bg-red-50 text-red-700 ring-red-600/20"
+                              }`}>
+                                {item.status}
+                                {item.status === "Bảo trì" && item.maintenanceLocation && 
+                                  ` - ${item.maintenanceLocation}`}
+                              </span>
+                            </TableCell>
+                            <TableCell>{item.condition}</TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <FileEdit className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEditEquipment(item.id)}>
+                                    Chỉnh sửa
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    // Toggle status
+                                    const newStatus = item.status === "Sẵn sàng" ? "Đang thuê" : "Sẵn sàng";
+                                    setEquipment(
+                                      equipment.map(eq => 
+                                        eq.id === item.id ? {...eq, status: newStatus} : eq
+                                      )
+                                    );
+                                    toast({
+                                      title: "Đã cập nhật trạng thái",
+                                      description: `Thiết bị ${item.name} đã được chuyển sang ${newStatus}`,
+                                    });
+                                  }}>
+                                    {item.status === "Sẵn sàng" ? "Đánh dấu đang thuê" : "Đánh dấu sẵn sàng"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleMarkForMaintenance(item.id)}>
+                                    <Wrench className="h-4 w-4 mr-2" />
+                                    Đánh dấu cần bảo trì
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => {
+                                    setEquipment(equipment.filter(eq => eq.id !== item.id));
+                                    toast({
+                                      title: "Đã xóa thiết bị",
+                                      description: `Thiết bị ${item.name} đã được xóa khỏi danh sách`,
+                                      variant: "destructive"
+                                    });
+                                  }} className="text-destructive">
+                                    Xóa thiết bị
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredEquipment.filter(item => item.equipmentType === "lighting").length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
+                              Không có thiết bị ánh sáng nào
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+              
+              {/* Personnel & Others */}
+              {(equipmentTypeFilter === "all" || equipmentTypeFilter === "personnel") && 
+                filteredEquipment.some(item => item.equipmentType === "personnel") && (
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center">
+                    <Users className="mr-2 h-5 w-5" />
+                    Nhân sự - Di chuyển - Phát sinh
+                  </h3>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tên</TableHead>
+                          <TableHead>Danh mục</TableHead>
+                          <TableHead>Mã</TableHead>
+                          <TableHead>Giá thuê/ngày</TableHead>
+                          <TableHead>Trạng thái</TableHead>
+                          <TableHead>Ghi chú</TableHead>
+                          <TableHead className="text-right">Thao tác</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredEquipment
+                          .filter(item => item.equipmentType === "personnel")
+                          .map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell>{item.category}</TableCell>
+                            <TableCell>{item.serialNumber}</TableCell>
+                            <TableCell>{item.dailyRate.toLocaleString()}đ</TableCell>
+                            <TableCell>
+                              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${
+                                item.status === "Sẵn sàng" 
+                                  ? "bg-green-50 text-green-700 ring-green-600/20" 
+                                  : item.status === "Đang thuê"
+                                    ? "bg-yellow-50 text-yellow-700 ring-yellow-600/20"
+                                    : "bg-red-50 text-red-700 ring-red-600/20"
+                              }`}>
+                                {item.status}
+                              </span>
+                            </TableCell>
+                            <TableCell>{item.condition}</TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <FileEdit className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEditEquipment(item.id)}>
+                                    Chỉnh sửa
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    // Toggle status
+                                    const newStatus = item.status === "Sẵn sàng" ? "Đang thuê" : "Sẵn sàng";
+                                    setEquipment(
+                                      equipment.map(eq => 
+                                        eq.id === item.id ? {...eq, status: newStatus} : eq
+                                      )
+                                    );
+                                    toast({
+                                      title: "Đã cập nhật trạng thái",
+                                      description: `${item.name} đã được chuyển sang ${newStatus}`,
+                                    });
+                                  }}>
+                                    {item.status === "Sẵn sàng" ? "Đánh dấu đang hoạt động" : "Đánh dấu sẵn sàng"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => {
+                                    setEquipment(equipment.filter(eq => eq.id !== item.id));
+                                    toast({
+                                      title: "Đã xóa",
+                                      description: `${item.name} đã được xóa khỏi danh sách`,
+                                      variant: "destructive"
+                                    });
+                                  }} className="text-destructive">
+                                    Xóa
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredEquipment.filter(item => item.equipmentType === "personnel").length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
+                              Không có nhân sự hoặc chi phí phát sinh nào
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </CardContent>
             <CardFooter className="flex justify-between">
               <p className="text-sm text-muted-foreground">
@@ -754,6 +1123,7 @@ const Equipment = () => {
                     <TableHead>Thiết bị</TableHead>
                     <TableHead>Ngày báo cáo</TableHead>
                     <TableHead>Mô tả vấn đề</TableHead>
+                    <TableHead>Vị trí bảo trì</TableHead>
                     <TableHead>Chi phí</TableHead>
                     <TableHead>Trạng thái</TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
@@ -765,6 +1135,7 @@ const Equipment = () => {
                       <TableCell className="font-medium">{record.equipmentName}</TableCell>
                       <TableCell>{record.date}</TableCell>
                       <TableCell>{record.description}</TableCell>
+                      <TableCell>{record.location || "Chưa xác định"}</TableCell>
                       <TableCell>{record.cost.toLocaleString()}đ</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${
@@ -790,7 +1161,7 @@ const Equipment = () => {
                   ))}
                   {filteredMaintenanceRecords.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                         Không có bản ghi bảo trì nào
                       </TableCell>
                     </TableRow>
@@ -823,17 +1194,18 @@ const Equipment = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Thiết bị</TableHead>
+                    <TableHead>Loại</TableHead>
                     <TableHead>Số serial</TableHead>
                     <TableHead>Ngày mua</TableHead>
                     <TableHead>Giá mua</TableHead>
-                    <TableHead>Số lượt thuê</TableHead>
-                    <TableHead>Khấu hao</TableHead>
+                    <TableHead>Giá thuê/ngày</TableHead>
+                    <TableHead>Khấu hao/ngày</TableHead>
                     <TableHead>Giá trị hiện tại</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredEquipment
-                    .filter(item => item.purchasePrice && item.purchaseDate)
+                    .filter(item => item.purchasePrice && (item.equipmentType === 'camera' || item.equipmentType === 'lighting'))
                     .map((item) => {
                       const depreciation = calculateDepreciation(item);
                       const currentValue = getCurrentValue(item);
@@ -841,18 +1213,24 @@ const Equipment = () => {
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              {renderEquipmentTypeIcon(item.equipmentType)}
+                              {getEquipmentTypeName(item.equipmentType)}
+                            </div>
+                          </TableCell>
                           <TableCell>{item.serialNumber}</TableCell>
                           <TableCell>{item.purchaseDate}</TableCell>
                           <TableCell>{item.purchasePrice?.toLocaleString()}đ</TableCell>
-                          <TableCell>{item.rentalCount}</TableCell>
+                          <TableCell>{item.dailyRate.toLocaleString()}đ</TableCell>
                           <TableCell>{depreciation.toLocaleString()}đ</TableCell>
                           <TableCell>{currentValue.toLocaleString()}đ</TableCell>
                         </TableRow>
                       );
                     })}
-                  {filteredEquipment.filter(item => item.purchasePrice && item.purchaseDate).length === 0 && (
+                  {filteredEquipment.filter(item => item.purchasePrice && (item.equipmentType === 'camera' || item.equipmentType === 'lighting')).length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                         Không có dữ liệu khấu hao
                       </TableCell>
                     </TableRow>

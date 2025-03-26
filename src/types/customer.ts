@@ -1,4 +1,3 @@
-
 export interface Customer {
   id: number;
   name: string;
@@ -18,11 +17,13 @@ export interface Equipment {
   isAvailable: boolean;
   maintenanceNotes?: string;
   maintenanceLocation?: string;
+  equipmentType: 'camera' | 'lighting' | 'personnel' | 'other';
 }
 
 export interface EquipmentCategory {
   id: string;
   name: string;
+  type: 'camera' | 'lighting' | 'personnel' | 'other';
 }
 
 export interface RentalItemDetail {
