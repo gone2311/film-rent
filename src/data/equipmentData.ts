@@ -26,7 +26,9 @@ export const sampleEquipment: Equipment[] = [
     purchasePrice: 150000000,
     purchaseDate: "2022-05-15",
     rentalCount: 25,
-    equipmentType: 'camera'
+    equipmentType: 'camera',
+    quantity: 1,
+    isAvailable: true
   },
   {
     id: 2,
@@ -39,7 +41,9 @@ export const sampleEquipment: Equipment[] = [
     purchasePrice: 25000000,
     purchaseDate: "2022-08-20",
     rentalCount: 18,
-    equipmentType: 'lighting'
+    equipmentType: 'lighting',
+    quantity: 2,
+    isAvailable: true
   },
   {
     id: 3,
@@ -52,7 +56,9 @@ export const sampleEquipment: Equipment[] = [
     purchasePrice: 15000000,
     purchaseDate: "2022-03-10",
     rentalCount: 30,
-    equipmentType: 'camera'
+    equipmentType: 'camera',
+    quantity: 1,
+    isAvailable: false
   },
   {
     id: 4,
@@ -65,7 +71,9 @@ export const sampleEquipment: Equipment[] = [
     purchasePrice: 45000000,
     purchaseDate: "2022-07-05",
     rentalCount: 15,
-    equipmentType: 'camera'
+    equipmentType: 'camera',
+    quantity: 1,
+    isAvailable: true
   },
   {
     id: 5,
@@ -78,7 +86,9 @@ export const sampleEquipment: Equipment[] = [
     purchasePrice: 8000000,
     purchaseDate: "2022-01-30",
     rentalCount: 22,
-    equipmentType: 'camera'
+    equipmentType: 'camera',
+    quantity: 1,
+    isAvailable: false
   },
   {
     id: 6,
@@ -89,7 +99,9 @@ export const sampleEquipment: Equipment[] = [
     status: "Sẵn sàng",
     condition: "N/A",
     rentalCount: 40,
-    equipmentType: 'personnel'
+    equipmentType: 'personnel',
+    quantity: 2,
+    isAvailable: true
   },
   {
     id: 7,
@@ -100,7 +112,9 @@ export const sampleEquipment: Equipment[] = [
     status: "Sẵn sàng",
     condition: "N/A",
     rentalCount: 35,
-    equipmentType: 'personnel'
+    equipmentType: 'personnel',
+    quantity: 2,
+    isAvailable: true
   },
   {
     id: 8,
@@ -113,7 +127,9 @@ export const sampleEquipment: Equipment[] = [
     purchasePrice: 500000000,
     purchaseDate: "2021-10-15",
     rentalCount: 60,
-    equipmentType: 'personnel'
+    equipmentType: 'personnel',
+    quantity: 1,
+    isAvailable: true
   }
 ];
 
