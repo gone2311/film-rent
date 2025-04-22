@@ -16,6 +16,7 @@ import Debts from "./pages/Debts";
 import Quotes from "./pages/Quotes";
 import Reconciliation from "./pages/Reconciliation";
 import Settings from "./pages/Settings";
+import Account from "./pages/Account";
 import { useState } from "react";
 import { Navbar } from "./components/ui/navbar";
 import { ActionMenubar } from "./components/ui/action-menubar";
@@ -87,6 +88,11 @@ const App = () => {
               <Route path="/settings" element={
                 <MainLayout>
                   <Settings />
+                </MainLayout>
+              } />
+              <Route path="/account" element={
+                <MainLayout>
+                  <Account />
                 </MainLayout>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

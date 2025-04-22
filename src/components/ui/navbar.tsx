@@ -73,9 +73,11 @@ export function Navbar() {
               <DropdownMenuLabel>Tài khoản</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
+                <Link to="/account" className="w-full cursor-pointer">Thông tin cá nhân</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link to="/settings" className="w-full cursor-pointer">Cài đặt công ty</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">Thông tin cá nhân</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="cursor-pointer">Đăng xuất</DropdownMenuItem>
             </DropdownMenuContent>

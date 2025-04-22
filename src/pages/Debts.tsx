@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -16,9 +17,9 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { FileEdit, FilePlus, Search, Users } from "lucide-react";
+import { FileEdit, FilePlus, Search, Users, CreditCard } from "lucide-react";
 import { useState } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Navbar } from "@/components/ui/navbar";
 
 // Định nghĩa schema Zod cho form
 const debtFormSchema = z.object({
@@ -43,6 +45,16 @@ const debtFormSchema = z.object({
 });
 
 type DebtFormValues = z.infer<typeof debtFormSchema>;
+
+// Schema cho form thanh toán
+const paymentFormSchema = z.object({
+  amount: z.string().min(1, { message: "Số tiền không được để trống" }),
+  paymentMethod: z.string().min(1, { message: "Vui lòng chọn phương thức thanh toán" }),
+  paymentDate: z.string().min(1, { message: "Ngày thanh toán không được để trống" }),
+  notes: z.string().optional(),
+});
+
+type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
 // Dữ liệu mẫu về công nợ
 const sampleDebts = [
@@ -105,6 +117,8 @@ const Debts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debts, setDebts] = useState(sampleDebts);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [selectedDebt, setSelectedDebt] = useState<any>(null);
   const { toast } = useToast();
 
   const form = useForm<DebtFormValues>({
@@ -115,6 +129,16 @@ const Debts = () => {
       dueDate: "",
       description: "",
       status: "Chưa thanh toán"
+    },
+  });
+
+  const paymentForm = useForm<PaymentFormValues>({
+    resolver: zodResolver(paymentFormSchema),
+    defaultValues: {
+      amount: "",
+      paymentMethod: "Chuyển khoản",
+      paymentDate: new Date().toISOString().split('T')[0],
+      notes: "",
     },
   });
 
@@ -153,8 +177,54 @@ const Debts = () => {
     setIsDialogOpen(false);
   };
 
+  const handleOpenPayment = (debt: any) => {
+    setSelectedDebt(debt);
+    paymentForm.setValue("amount", debt.amount.toString());
+    setIsPaymentDialogOpen(true);
+  };
+
+  const onPaymentSubmit = (data: PaymentFormValues) => {
+    if (!selectedDebt) return;
+
+    const paymentAmount = parseFloat(data.amount);
+    const remainingAmount = selectedDebt.amount - paymentAmount;
+    
+    let newStatus = "Đã thanh toán";
+    if (remainingAmount > 0) {
+      newStatus = "Đã thanh toán một phần";
+    }
+
+    // Cập nhật trạng thái công nợ
+    const updatedDebts = debts.map(debt => {
+      if (debt.id === selectedDebt.id) {
+        return {
+          ...debt,
+          amount: remainingAmount,
+          status: newStatus
+        };
+      }
+      return debt;
+    });
+
+    setDebts(updatedDebts);
+    setIsPaymentDialogOpen(false);
+    
+    toast({
+      title: "Thanh toán thành công",
+      description: `Đã thanh toán ${formatCurrency(paymentAmount)} cho công nợ của ${selectedDebt.customerName}`,
+    });
+  };
+
+  const handleEditDebt = (debt: any) => {
+    toast({
+      title: "Chức năng đang phát triển",
+      description: "Chức năng chỉnh sửa công nợ đang được phát triển",
+    });
+  };
+
   return (
     <div>
+      <Navbar />
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Quản lý công nợ</h2>
@@ -314,9 +384,26 @@ const Debts = () => {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon">
-                          <FileEdit className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleEditDebt(debt)}
+                          >
+                            <FileEdit className="h-4 w-4" />
+                          </Button>
+                          {debt.status !== "Đã thanh toán" && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleOpenPayment(debt)}
+                              className="flex items-center gap-1"
+                            >
+                              <CreditCard className="h-3 w-3" />
+                              Thanh toán
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -331,6 +418,90 @@ const Debts = () => {
           </CardFooter>
         </Card>
       </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Thanh toán công nợ</DialogTitle>
+            <DialogDescription>
+              {selectedDebt && (
+                <div className="mt-2 text-sm">
+                  <p>Khách hàng: <span className="font-medium">{selectedDebt.customerName}</span></p>
+                  <p>Công nợ hiện tại: <span className="font-medium">{formatCurrency(selectedDebt.amount)}</span></p>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...paymentForm}>
+            <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
+              <FormField
+                control={paymentForm.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Số tiền thanh toán (VNĐ)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="15,000,000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={paymentForm.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phương thức thanh toán</FormLabel>
+                    <FormControl>
+                      <select 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                        {...field}
+                      >
+                        <option value="Chuyển khoản">Chuyển khoản</option>
+                        <option value="Tiền mặt">Tiền mặt</option>
+                        <option value="Khác">Khác</option>
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={paymentForm.control}
+                name="paymentDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ngày thanh toán</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={paymentForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ghi chú</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ghi chú cho thanh toán này" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)} type="button">Hủy</Button>
+                <Button type="submit">Xác nhận thanh toán</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
