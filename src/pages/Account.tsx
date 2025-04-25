@@ -1,451 +1,272 @@
 
-import { Navbar } from "@/components/ui/navbar";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { 
-  User, 
-  Building, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Camera, 
-  Save, 
-  Lock, 
-  Eye, 
-  EyeOff 
-} from "lucide-react";
-import { useState } from "react";
-import { useCompany } from "@/context/CompanyContext";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
+import { User, Key, LogOut, Mail, Edit } from "lucide-react";
+
+interface Profile {
+  id: string;
+  full_name: string;
+  job_title: string;
+  phone: string;
+  avatar_url: string | null;
+}
 
 const Account = () => {
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
-  const { companyName, companyLogo, updateCompany } = useCompany();
-  const [showPassword, setShowPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-
-  const [profileForm, setProfileForm] = useState({
-    fullName: "Nguyễn Văn A",
-    email: "admin@example.com",
-    phone: "0912345678",
-    position: "Quản lý"
+  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [formData, setFormData] = useState({
+    full_name: "",
+    job_title: "",
+    phone: "",
   });
 
-  const [companyForm, setCompanyForm] = useState({
-    name: companyName || "Công ty TNHH Thiết bị Ngành Phim",
-    email: "contact@example.com",
-    phone: "028 1234 5678",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
-    taxCode: "0123456789",
-    website: "www.example.com",
-    description: "Chuyên cung cấp thiết bị ngành phim chất lượng cao."
-  });
-  
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: ""
-  });
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
 
-  const [logoPreview, setLogoPreview] = useState(companyLogo || "");
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
 
-  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setProfileForm({
-      ...profileForm,
-      [name]: value
-    });
-  };
+      if (error) {
+        throw error;
+      }
 
-  const handleCompanyChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setCompanyForm({
-      ...companyForm,
-      [name]: value
-    });
-  };
-
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPasswordForm({
-      ...passwordForm,
-      [name]: value
-    });
-  };
-
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setLogoPreview(result);
-      };
-      reader.readAsDataURL(file);
+      if (data) {
+        setProfile(data);
+        setFormData({
+          full_name: data.full_name || "",
+          job_title: data.job_title || "",
+          phone: data.phone || "",
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleProfileSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast({
-      title: "Cập nhật thông tin cá nhân",
-      description: "Thông tin cá nhân đã được cập nhật thành công",
-    });
-  };
+  const updateProfile = async () => {
+    try {
+      setLoading(true);
 
-  const handleCompanySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateCompany(companyForm.name, logoPreview);
-    toast({
-      title: "Cập nhật thông tin công ty",
-      description: "Thông tin công ty đã được cập nhật thành công",
-    });
-  };
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user?.id,
+          full_name: formData.full_name,
+          job_title: formData.job_title,
+          phone: formData.phone,
+          updated_at: new Date(),
+        });
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      if (error) {
+        throw error;
+      }
+
+      await fetchProfile();
+      setEditMode(false);
+      
+      toast({
+        title: "Thành công",
+        description: "Thông tin cá nhân đã được cập nhật",
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
       toast({
         title: "Lỗi",
-        description: "Mật khẩu mới và xác nhận mật khẩu không khớp",
-        variant: "destructive"
+        description: "Không thể cập nhật thông tin cá nhân",
+        variant: "destructive",
       });
-      return;
+    } finally {
+      setLoading(false);
     }
-    
-    if (passwordForm.currentPassword === "") {
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '');
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Email đã gửi",
+        description: "Vui lòng kiểm tra email để đổi mật khẩu",
+      });
+    } catch (error) {
+      console.error('Error resetting password:', error);
       toast({
         title: "Lỗi",
-        description: "Vui lòng nhập mật khẩu hiện tại",
-        variant: "destructive"
+        description: "Không thể gửi email đổi mật khẩu",
+        variant: "destructive",
       });
-      return;
     }
-    
-    setPasswordForm({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: ""
-    });
-    
-    toast({
-      title: "Đổi mật khẩu thành công",
-      description: "Mật khẩu của bạn đã được cập nhật",
-    });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   return (
-    <div>
-      <Navbar />
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Tài khoản của tôi</h2>
-        </div>
-        
-        <Tabs defaultValue="profile" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="profile">Thông tin cá nhân</TabsTrigger>
-            <TabsTrigger value="company">Thông tin công ty</TabsTrigger>
-            <TabsTrigger value="password">Đổi mật khẩu</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="profile" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Thông tin cá nhân</CardTitle>
-                <CardDescription>
-                  Quản lý thông tin cá nhân của bạn
-                </CardDescription>
-              </CardHeader>
-              <form onSubmit={handleProfileSubmit}>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName">Họ và tên</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="fullName"
-                          name="fullName"
-                          value={profileForm.fullName}
-                          onChange={handleProfileChange}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="position">Chức vụ</Label>
-                      <div className="relative">
-                        <Building className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="position"
-                          name="position"
-                          value={profileForm.position}
-                          onChange={handleProfileChange}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          value={profileForm.email}
-                          onChange={handleProfileChange}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Số điện thoại</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="phone"
-                          name="phone"
-                          value={profileForm.phone}
-                          onChange={handleProfileChange}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit">
-                    <Save className="mr-2 h-4 w-4" />
-                    Lưu thông tin
-                  </Button>
-                </CardFooter>
-              </form>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="company" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Thông tin công ty</CardTitle>
-                <CardDescription>
-                  Quản lý thông tin công ty của bạn
-                </CardDescription>
-              </CardHeader>
-              <form onSubmit={handleCompanySubmit}>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-col md:flex-row gap-6">
-                    <div className="md:w-1/3 flex flex-col items-center">
-                      <div className="w-48 h-48 rounded-lg overflow-hidden border mb-4 flex items-center justify-center bg-muted">
-                        {logoPreview ? (
-                          <img 
-                            src={logoPreview} 
-                            alt="Logo công ty" 
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          <Building className="h-20 w-20 text-muted-foreground" />
-                        )}
-                      </div>
-                      <Label 
-                        htmlFor="logo" 
-                        className="cursor-pointer border rounded-md px-4 py-2 flex items-center justify-center w-full"
-                      >
-                        <Camera className="mr-2 h-4 w-4" />
-                        Thay đổi logo
-                      </Label>
-                      <input 
-                        id="logo" 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleLogoChange} 
-                        className="hidden" 
-                      />
-                    </div>
-                    
-                    <div className="md:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Tên công ty</Label>
-                        <Input
-                          id="name"
-                          name="name"
-                          value={companyForm.name}
-                          onChange={handleCompanyChange}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="taxCode">Mã số thuế</Label>
-                        <Input
-                          id="taxCode"
-                          name="taxCode"
-                          value={companyForm.taxCode}
-                          onChange={handleCompanyChange}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email công ty</Label>
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          value={companyForm.email}
-                          onChange={handleCompanyChange}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Số điện thoại</Label>
-                        <Input
-                          id="phone"
-                          name="phone"
-                          value={companyForm.phone}
-                          onChange={handleCompanyChange}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="website">Website</Label>
-                        <Input
-                          id="website"
-                          name="website"
-                          value={companyForm.website}
-                          onChange={handleCompanyChange}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="address">Địa chỉ</Label>
-                        <Input
-                          id="address"
-                          name="address"
-                          value={companyForm.address}
-                          onChange={handleCompanyChange}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="description">Mô tả công ty</Label>
-                        <Textarea
-                          id="description"
-                          name="description"
-                          value={companyForm.description}
-                          onChange={handleCompanyChange}
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit">
-                    <Save className="mr-2 h-4 w-4" />
-                    Lưu thông tin
-                  </Button>
-                </CardFooter>
-              </form>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="password" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Đổi mật khẩu</CardTitle>
-                <CardDescription>
-                  Thay đổi mật khẩu đăng nhập của bạn
-                </CardDescription>
-              </CardHeader>
-              <form onSubmit={handlePasswordSubmit}>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="currentPassword">Mật khẩu hiện tại</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="currentPassword"
-                          name="currentPassword"
-                          type={showPassword ? "text" : "password"}
-                          value={passwordForm.currentPassword}
-                          onChange={handlePasswordChange}
-                          className="pl-10 pr-10"
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-3 text-muted-foreground"
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="newPassword">Mật khẩu mới</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="newPassword"
-                          name="newPassword"
-                          type={showNewPassword ? "text" : "password"}
-                          value={passwordForm.newPassword}
-                          onChange={handlePasswordChange}
-                          className="pl-10 pr-10"
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => setShowNewPassword(!showNewPassword)}
-                          className="absolute right-3 top-3 text-muted-foreground"
-                        >
-                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword">Xác nhận mật khẩu mới</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="confirmPassword"
-                          name="confirmPassword"
-                          type={showNewPassword ? "text" : "password"}
-                          value={passwordForm.confirmPassword}
-                          onChange={handlePasswordChange}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit">
-                    <Save className="mr-2 h-4 w-4" />
-                    Cập nhật mật khẩu
-                  </Button>
-                </CardFooter>
-              </form>
-            </Card>
-          </TabsContent>
-        </Tabs>
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Tài khoản cá nhân</h2>
       </div>
+
+      <Tabs defaultValue="profile" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="profile"><User className="mr-2 h-4 w-4" /> Thông tin cá nhân</TabsTrigger>
+          <TabsTrigger value="security"><Key className="mr-2 h-4 w-4" /> Bảo mật</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="profile" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Thông tin cá nhân</CardTitle>
+              <CardDescription>
+                Quản lý thông tin cá nhân của bạn
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!editMode ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Email</p>
+                      <p>{user?.email}</p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => setEditMode(true)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Họ và tên</p>
+                    <p>{profile?.full_name || "Chưa cập nhật"}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Chức vụ</p>
+                    <p>{profile?.job_title || "Chưa cập nhật"}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Số điện thoại</p>
+                    <p>{profile?.phone || "Chưa cập nhật"}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" value={user?.email || ""} disabled />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="full_name">Họ và tên</Label>
+                    <Input 
+                      id="full_name"
+                      name="full_name"
+                      value={formData.full_name}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="job_title">Chức vụ</Label>
+                    <Input
+                      id="job_title"
+                      name="job_title"
+                      value={formData.job_title}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="phone">Số điện thoại</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button onClick={updateProfile} disabled={loading}>
+                      {loading ? "Đang cập nhật..." : "Lưu thay đổi"}
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditMode(false)}>
+                      Hủy
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="security" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Bảo mật</CardTitle>
+              <CardDescription>
+                Quản lý mật khẩu và cài đặt bảo mật tài khoản
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h3 className="font-medium">Đổi mật khẩu</h3>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Gửi email hướng dẫn đổi mật khẩu đến địa chỉ email của bạn
+                </p>
+                <Button onClick={handleChangePassword}>
+                  <Mail className="mr-2 h-4 w-4" /> Gửi email đổi mật khẩu
+                </Button>
+              </div>
+
+              <div className="pt-4 border-t">
+                <h3 className="font-medium">Đăng xuất</h3>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Đăng xuất khỏi tài khoản
+                </p>
+                <Button variant="destructive" onClick={signOut}>
+                  <LogOut className="mr-2 h-4 w-4" /> Đăng xuất
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

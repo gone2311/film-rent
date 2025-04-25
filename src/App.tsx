@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CompanyProvider } from "./context/CompanyContext";
+import { AuthProvider } from "./context/AuthContext";
+import { useAuth } from "./context/AuthContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
@@ -17,11 +19,27 @@ import Quotes from "./pages/Quotes";
 import Reconciliation from "./pages/Reconciliation";
 import Settings from "./pages/Settings";
 import Account from "./pages/Account";
+import Login from "./pages/Login";
 import { useState } from "react";
 import { Navbar } from "./components/ui/navbar";
 import { ActionMenubar } from "./components/ui/action-menubar";
 
-// Tạo component MainLayout để bọc tất cả các trang chính với thanh điều hướng
+// Protected route component
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+  
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+};
+
+// Main layout with navigation
 const MainLayout = ({ children }) => {
   return (
     <>
@@ -38,69 +56,91 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <CompanyProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/dashboard" element={
-                <MainLayout>
-                  <Dashboard />
-                </MainLayout>
-              } />
-              <Route path="/equipment" element={
-                <MainLayout>
-                  <Equipment />
-                </MainLayout>
-              } />
-              <Route path="/rentals" element={
-                <MainLayout>
-                  <Rentals />
-                </MainLayout>
-              } />
-              <Route path="/customers" element={
-                <MainLayout>
-                  <Customers />
-                </MainLayout>
-              } />
-              <Route path="/backdrop" element={
-                <MainLayout>
-                  <Backdrop />
-                </MainLayout>
-              } />
-              <Route path="/debts" element={
-                <MainLayout>
-                  <Debts />
-                </MainLayout>
-              } />
-              <Route path="/quotes" element={
-                <MainLayout>
-                  <Quotes />
-                </MainLayout>
-              } />
-              <Route path="/reconciliation" element={
-                <MainLayout>
-                  <Reconciliation />
-                </MainLayout>
-              } />
-              <Route path="/settings" element={
-                <MainLayout>
-                  <Settings />
-                </MainLayout>
-              } />
-              <Route path="/account" element={
-                <MainLayout>
-                  <Account />
-                </MainLayout>
-              } />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </CompanyProvider>
+      <AuthProvider>
+        <CompanyProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Dashboard />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/equipment" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Equipment />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/rentals" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Rentals />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/customers" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Customers />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/backdrop" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Backdrop />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/debts" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Debts />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/quotes" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Quotes />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/reconciliation" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Reconciliation />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/settings" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Settings />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/account" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Account />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </CompanyProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };
