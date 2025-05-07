@@ -20,6 +20,7 @@ import Reconciliation from "./pages/Reconciliation";
 import Settings from "./pages/Settings";
 import Account from "./pages/Account";
 import Login from "./pages/Login";
+import DatabaseExport from "./pages/DatabaseExport";
 import { useState } from "react";
 import { Navbar } from "./components/ui/navbar";
 import { ActionMenubar } from "./components/ui/action-menubar";
@@ -132,6 +133,13 @@ const App = () => {
                   <ProtectedRoute>
                     <MainLayout>
                       <Account />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/database-export" element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <DatabaseExport />
                     </MainLayout>
                   </ProtectedRoute>
                 } />
